@@ -1,0 +1,6 @@
+*.o
+*.so
+.DS_Store
+mongoose
+moowapp_insert
+moowapp_server
