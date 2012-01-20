@@ -583,12 +583,14 @@ static void stats_app_month(struct mg_connection *conn,
   char strOffset[11];  // Date offset. Ex: 11
   char strModules[11]; // Number of modules. Ex: 4
   char strModule[65];  // Modules name. Ex: gerer_connaissance
+  char strAppDays[61]; // Days in the month, starting at 0. Ex: 0-30 or 0-2,4,6-30
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1 or 2 or 3
   ostringstream oss;
   istringstream ss;
   string mode;
   string visit;
+  string date;
   time_t tStamp;
   struct tm * timeinfo;
   set<string> setDate, setModules, setOtherModules;
@@ -631,11 +633,16 @@ static void stats_app_month(struct mg_connection *conn,
       // Convert timestamp to Y-m-d
       boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
       boost::gregorian::date d = pt.date();
-      setDate.insert(boost::gregorian::to_iso_extended_string(d));
+      date = boost::gregorian::to_iso_extended_string(d);
+      setDate.insert(date);
       //-- Set each date to according offset in response.
       mg_printf(conn, "\"%d\":\"%s\",", i, strDate);
     }
   }
+  
+  //-- Save Year-Month for later
+  size_t found = date.find_last_of("-");
+  string strYearMonth = date.substr(0, found+1);
   
   //-- Set Mode and Date in response.
   // Extract "Day NDay Month" from timestamp
@@ -655,6 +662,55 @@ static void stats_app_month(struct mg_connection *conn,
       if (strModule[0] == '\0') continue;
       mg_printf(conn, "[\"%s\",{", strModule); // Print application name
       if (c.DEBUG_REQUESTS) cout << "stats_app_month - app=" << strModule;
+      
+      // Get periods for that project (filtering)
+      oss << "p_" << i << "_d";
+      get_qsvar(ri, oss.str().c_str(), strAppDays, sizeof(strAppDays));
+      oss.str("");
+      if (strAppDays[0] == '\0') sprintf(strAppDays, "1-31"); // Default value : complete month
+      //if (c.DEBUG_REQUESTS) cout << " days=" << strAppDays;
+      
+      //-- Store only date to be returned
+      set<string> setDateToKeep;
+      if (strcmp(strAppDays, "1-31") != 0) {
+        
+        // Split sequences separated by coma ; Ex 1-4,6,8-12,15
+        vector<string> vectStrComa;
+        boost::split(vectStrComa, strAppDays, boost::is_any_of(","));
+        for(vector<string>::iterator tok_iter = vectStrComa.begin(); tok_iter != vectStrComa.end(); ++tok_iter) {
+          
+          found = (*tok_iter).find("-");
+          if (found != string::npos) {
+            // Split sequences separated by - ; Ex: 3-30
+            vector<string> vectStrDash;
+            boost::split(vectStrDash, *tok_iter, boost::is_any_of("-"));
+            vector<string>::iterator ttok_iter = vectStrDash.begin();
+            int start, end;
+            try {
+              start = boost::lexical_cast<int>(*ttok_iter);
+              if(ttok_iter != vectStrDash.end()) {
+                ++ttok_iter;
+              }
+              end = boost::lexical_cast<int>(*ttok_iter);
+              for(;start <= end; ++start) {
+                oss << strYearMonth << std::setw(2) << std::setfill('0') << start;
+                //if (c.DEBUG_REQUESTS) cout <<  " Added: " << oss.str();
+                setDateToKeep.insert(oss.str());
+                oss.str("");
+              }
+            } catch(boost::bad_lexical_cast &) {}
+            
+          } else {
+            // Single numbers : Ex: 4,6,8
+            try {
+              oss << strYearMonth << std::setw(2) << std::setfill('0') << *tok_iter;
+              //if (c.DEBUG_REQUESTS) cout <<  " Added: " << oss.str();
+              setDateToKeep.insert(oss.str());
+              oss.str("");
+            } catch(boost::bad_lexical_cast &) {}
+          }
+        }
+      }
       
       // Get nb module of that app in request
       oss << "m_" << i;
@@ -682,21 +738,26 @@ static void stats_app_month(struct mg_connection *conn,
       //-- and loop for each dates.
       sscanf(strOffset, "%d", &j);
       for(it=setDate.begin(); it!=setDate.end(); j++) {
-        //-- and each module in an app
-        for(itt=setModules.begin(), nbVisitForApp = 0; itt!=setModules.end(); itt++) {
-          //-- Get nb visit from DB
-          // Build Key ex: "creer_modifier_retrocession/1/2011-04-24";
-          oss << *itt << '/' << strType << "/" << *it;
-          // Search Key (oss) in DB
-          visit = dbw_get(db, oss.str());
-          oss.str("");
-          int iVisit = 0;
-          if (visit.length() > 0) {
-            // Update nb visit of the app for this day
-            sscanf(visit.c_str(), "%d", &iVisit);
-            nbVisitForApp += iVisit;
+        nbVisitForApp = 0;
+        // If *it is not in setDateToKeep, return 0 values
+        set<string>::iterator itSet = setDateToKeep.find(*it);
+        if ((setDateToKeep.size() == 0) || (itSet != setDateToKeep.end())) {
+          //-- and each module in an app
+          for(itt=setModules.begin(); itt!=setModules.end(); itt++) {
+            //-- Get nb visit from DB
+            // Build Key ex: "creer_modifier_retrocession/1/2011-04-24";
+            oss << *itt << '/' << strType << "/" << *it;
+            // Search Key (oss) in DB
+            visit = dbw_get(db, oss.str());
+            oss.str("");
+            int iVisit = 0;
+            if (visit.length() > 0) {
+              // Update nb visit of the app for this day
+              sscanf(visit.c_str(), "%d", &iVisit);
+              nbVisitForApp += iVisit;
+            }
           }
-        }
+        }  
         // Return nb visit
         mg_printf(conn, "\"%d\":%d", j, nbVisitForApp);
 
@@ -858,7 +919,7 @@ void compressionThread(const Config c) {
   //boost::posix_time::ptime t = boost::posix_time::second_clock::universal_time() + boost::posix_time::minutes(LOGS_COMPRESSION_INTERVAL);
   /// FOR REAL usage USE a specific date/time : the next day at 3 o'clock
   boost::gregorian::date_duration dd(1);
-  boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day()/* + dd*/, boost::posix_time::time_duration(3,0,0));
+  boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() + dd, boost::posix_time::time_duration(3,0,0));
   
   try {
     while(true)
@@ -945,8 +1006,7 @@ void compressionThread(const Config c) {
         last = dateToHold;
         // Here is released the scoped mutex automatically
       }
-      /// FOR DEBUG purpose USE 10 seconds
-      ///boost::this_thread::sleep(boost::posix_time::seconds(10));
+      
       ///FOR REAL USE 10 minutes
       boost::this_thread::sleep(boost::posix_time::minutes(10));
     }
