@@ -757,14 +757,18 @@ static void stats_app_month(struct mg_connection *conn,
               nbVisitForApp += iVisit;
             }
           }
-        }  
-        // Return nb visit
-        mg_printf(conn, "\"%d\":%d", j, nbVisitForApp);
-
+        }
         if (c.DEBUG_REQUESTS) cout << *it << " => " << nbVisitForApp << " visits." << endl;
-        
         it++;
-        if (it!=setDate.end()) mg_printf(conn, "%s", ",");
+        
+        // Return nb visit
+        if (nbVisitForApp != 0){
+          if (it!=setDate.end()) {
+            mg_printf(conn, "\"%d\":%d,", j, nbVisitForApp);
+          } else {
+            mg_printf(conn, "\"%d\":%d", j, nbVisitForApp);
+          }
+        }
       }
     }
     else {
