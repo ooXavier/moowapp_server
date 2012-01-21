@@ -18,9 +18,20 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 
 ## Manual
 1. Change the configuration.ini to set-up your folder to your web logs files
+2. Download and install BerkeleyDB (or any other db system: Kyoto Cabinet, Google LevelDB, nessDB ...)
+
+    Go to http://www.oracle.com/technetwork/database/berkeleydb/downloads/index-082944.html
+    Download this one "Berkeley DB 5.3.15.NC.tar.gz , without encryption" (34M)
+    $ tar zxvf "Berkeley DB 5.3.15.NC.tar.gz"
+    $ cd db-xxxxxxx
+    $ cd build_unix (or the one adapted to your situation)
+    $ ../dist/configure --prefix="FOLDER TO INSTALL"
+    $ make
+    $ make install
+    (default path are : /usr/local/BerkeleyDB.5.3 for app and /usr/local/BerkeleyDB.5.3/lib for libs)
 2. Build mongoose with
 
-    cd mongoose && make (linux|mac|windows) && cd ..
+    cd mongoose && make (linux|bsd|solaris|mac|windows|mingw) && cd ..
 3. Build app with
 
     make
