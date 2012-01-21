@@ -226,7 +226,8 @@ static void stats_app_day(struct mg_connection *conn,
   char strDates[11];   // Number of dates. Ex: 60
   char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
   char strModules[11]; // Number of modules. Ex: 4
-  char strModule[65];  // Modules name. Ex: gerer_connaissance
+  char strApplication[65];  // Application name. Ex: Calendar
+  char strModule[65];  // Modules name. Ex: module_test_1
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
@@ -582,7 +583,8 @@ static void stats_app_month(struct mg_connection *conn,
   char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
   char strOffset[11];  // Date offset. Ex: 11
   char strModules[11]; // Number of modules. Ex: 4
-  char strModule[65];  // Modules name. Ex: gerer_connaissance
+  char strApplication[65];  // Application name. Ex: Calendar
+  char strModule[65];  // Modules name. Ex: module_test_1
   char strAppDays[61]; // Days in the month, starting at 0. Ex: 0-30 or 0-2,4,6-30
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1 or 2 or 3
@@ -618,7 +620,7 @@ static void stats_app_month(struct mg_connection *conn,
   //-- Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
   is_jsonp = handle_jsonp(conn, ri);
-  mg_printf(conn, "%s", "[{");
+  mg_write(conn, "[{", 2);
   
   if (c.DEBUG_REQUESTS) cout << "nb=" << strModules << endl;
   
@@ -653,15 +655,16 @@ static void stats_app_month(struct mg_connection *conn,
   mg_printf(conn, "\"%d\":\"month\",\"%d\":\"%s\"},", i, i+1, strDate);
   
   //-- Build visits stats in response for each modules or app.
+  vector< pair<string, map<int, int> > > vRes;
   sscanf(strModules, "%d", &nbApps);
   for(i = 0; i < nbApps; i++) {
+    map<int, int> mapResMod;
     if (mode == "all") {
       oss << "p_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      get_qsvar(ri, oss.str().c_str(), strApplication, sizeof(strApplication));
       oss.str("");
-      if (strModule[0] == '\0') continue;
-      mg_printf(conn, "[\"%s\",{", strModule); // Print application name
-      if (c.DEBUG_REQUESTS) cout << "stats_app_month - app=" << strModule;
+      if (strApplication[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS) cout << "stats_app_month - app=" << strApplication;
       
       // Get periods for that project (filtering)
       oss << "p_" << i << "_d";
@@ -762,54 +765,49 @@ static void stats_app_month(struct mg_connection *conn,
         it++;
         
         // Return nb visit
-        if (nbVisitForApp != 0){
-          if (it!=setDate.end()) {
-            mg_printf(conn, "\"%d\":%d,", j, nbVisitForApp);
-          } else {
-            mg_printf(conn, "\"%d\":%d", j, nbVisitForApp);
-          }
-        }
+        ///if (nbVisitForApp != 0){
+          mapResMod.insert(pair<int, int>(j, nbVisitForApp));
+        ///}
       }
+      
+      vRes.push_back(make_pair(strApplication, mapResMod));
     }
     else {
       oss << "m_" << i;
       get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
       oss.str("");
       if (strModule[0] == '\0') continue;
-      mg_printf(conn, "[\"%s\",{", strModule); // Print web module name
-
       if (c.DEBUG_REQUESTS) cout << "stats_app_month - module=" << strModule << endl;
       
       //-- and each dates.
       sscanf(strOffset, "%d", &j);
-      for(it=setDate.begin(); it!=setDate.end(); j++) {
+      for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
         //-- Get nb visit from DB
         // Build Key ex: "creer_modifier_retrocession/1/2011-04-24";
         oss << strModule << '/' << strType << '/' << *it;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
+        if (c.DEBUG_REQUESTS) cout << oss.str() << " => j=" << j << " - "<< visit << " visits." << endl;
         oss.str("");
-        if (visit.length() <= 0)
-        visit = "0";
-        // Return nb visit
-        mg_printf(conn, "\"%d\":%s", j, visit.c_str());
-        
-        it++;
-        if (it!=setDate.end()) mg_printf(conn, "%s", ",");
+        // Return nb visit if != 0
+        if (visit.length() != 0){
+          mapResMod.insert(pair<int,int>(j, boost::lexical_cast<int>(visit)));
+        } else {
+          mapResMod.insert(pair<int,int>(j, 0));
+        }
       }
+      
+      vRes.push_back(make_pair(strModule, mapResMod));
     }
-    mg_printf(conn, "%s", "}]");
-    if (i != nbApps - 1) mg_printf(conn, "%s", ",");
   }
   
   //-- In all mode, add an "Others" application
   if (mode == "all" && setOtherModules.size() > 0) {
-    mg_printf(conn, ", [\"%s\",{", "Autres"); // Print "Others" name
-    
+    map<int, int> mapResMod;
     if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
     
     sscanf(strOffset, "%d", &j);
-    for(it=setDate.begin(); it!=setDate.end(); j++) {
+    for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
       for(itt=setOtherModules.begin(), nbVisitForApp = 0; itt!=setOtherModules.end(); itt++) {
         //-- Get nb visit from DB
         // Build Key ex: "creer_modifier_retrocession/2011-04-24";
@@ -825,23 +823,54 @@ static void stats_app_month(struct mg_connection *conn,
         }
         
         if (c.DEBUG_APP_OTHERS && it==setDate.begin()) cout << *itt << ", ";
-      }  
-      // Return nb visit
-      mg_printf(conn, "\"%d\":%d", j, nbVisitForApp);
+      }
       
-      it++;
-      if (it!=setDate.end()) mg_printf(conn, "%s", ",");
+      // Return nb visit if != 0
+      ///if (nbVisitForApp != 0){
+        mapResMod.insert(pair<int,int>(j, nbVisitForApp));
+      ///}
     }
-    mg_printf(conn, "%s", "}]");
+    
+    vRes.push_back(make_pair("Others", mapResMod));
     
     if (c.DEBUG_APP_OTHERS) cout << endl;
   }
   
-  //-- Set end JSON string in response.
-  mg_printf(conn, "%s", "]");
-  if (is_jsonp) {
-    mg_printf(conn, "%s", ")");
+  map<int, int>::iterator itMap;
+  
+  //-- Insert in front a sum of by days
+  map<int, int> mapSum;
+  for (it=setDate.begin(), i=0; it!=setDate.end(); i++, it++) {
+    mapSum.insert( pair<int,int>(i, 0) );
   }
+  for (int maxI=vRes.size(), i=0; i<maxI; i++) {
+    for (itMap=(vRes[i].second).begin(); itMap != (vRes[i].second).end(); itMap++) {
+      mapSum[itMap->first] += itMap->second;
+    }
+  }
+  vRes.insert(vRes.begin(), make_pair("All", mapSum));
+  
+  //-- Construct response
+  string response = "";
+  for (int maxI=vRes.size(), i=0; i<maxI; i++) {
+    // Print web module name or application name for mode "all"
+    response += "[\"" + vRes[i].first + "\",{";
+    int maxJ = (vRes[i].second).size();
+    for (itMap=(vRes[i].second).begin(), j=0; itMap != (vRes[i].second).end(); j++, itMap++) {
+      response += "\"" + boost::lexical_cast<string>(itMap->first)
+               + "\":" + boost::lexical_cast<string>(itMap->second);
+      if (j != (maxJ - 1)) response += ",";
+    }
+    response += "}]";
+    if (i != (maxI - 1)) response += ",";
+  }
+  response += "]";
+  
+  //-- Set end JSON string in response.
+  if (is_jsonp) {
+    response += ")";
+  }
+  mg_write(conn, response.c_str(), response.length());
 }
 
 /*!
