@@ -838,17 +838,19 @@ static void stats_app_month(struct mg_connection *conn,
   
   map<int, int>::iterator itMap;
   
-  //-- Insert in front a sum of by days
-  map<int, int> mapSum;
-  for (it=setDate.begin(), i=0; it!=setDate.end(); i++, it++) {
-    mapSum.insert( pair<int,int>(i, 0) );
-  }
-  for (int maxI=vRes.size(), i=0; i<maxI; i++) {
-    for (itMap=(vRes[i].second).begin(); itMap != (vRes[i].second).end(); itMap++) {
-      mapSum[itMap->first] += itMap->second;
+  //-- Insert in front a sum of by days 
+  if (vRes.size() > 1) { // If only one module, sum is useless
+    map<int, int> mapSum;
+    for (it=setDate.begin(), i=0; it!=setDate.end(); i++, it++) {
+      mapSum.insert( pair<int,int>(i, 0) );
     }
+    for (int maxI=vRes.size(), i=0; i<maxI; i++) {
+      for (itMap=(vRes[i].second).begin(); itMap != (vRes[i].second).end(); itMap++) {
+        mapSum[itMap->first] += itMap->second;
+      }
+    }
+    vRes.insert(vRes.begin(), make_pair("All", mapSum));
   }
-  vRes.insert(vRes.begin(), make_pair("All", mapSum));
   
   //-- Construct response
   string response = "";
