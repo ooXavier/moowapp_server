@@ -57,6 +57,55 @@ int getDBModules(set<string> &setModules) {
 }
 
 /*!
+ * \fn void statsAddSumRow(vector< pair<string, map<int, int> > > &vRes, int setDateSize)
+ * \brief Insert in front of the vector in param, a SUM of visits by days
+ *
+ * \param vRes The vector where the SUM will be added.
+ * \param nbResWithOffset A number of days
+ * \param offset A number of stating day for the answer
+ */
+void statsAddSumRow(vector< pair<string, map<int, int> > > &vRes, int nbResWithOffset, int offset) {
+  map<int, int>::iterator itMap;
+  
+  if (vRes.size() > 1) { // If only one module, sum is useless
+    map<int, int> mapSum;
+      
+    for (int i=offset; i < nbResWithOffset; i++) {
+      mapSum.insert( pair<int,int>(i, 0) );
+    }  
+    for (int maxI=vRes.size(), i=0; i<maxI; i++) {
+      for (itMap=(vRes[i].second).begin(); itMap != (vRes[i].second).end(); itMap++) {
+        mapSum[itMap->first] += itMap->second;
+      }
+    }
+    vRes.insert(vRes.begin(), make_pair("All", mapSum));
+  }
+}
+
+/*!
+ * \fn void statsConstructResponse(vector< pair<string, map<int, int> > > &vRes, string &response)
+ * \brief Return a JSON part string of the content of a vector of stats.
+ *
+ * \param vRes The vector of all stats grouped by module and stored by day.
+ * \param response Response string in JSON format (only part of JSON answer will be returned). Should by empty at call.
+ */
+void statsConstructResponse(vector< pair<string, map<int, int> > > &vRes, string &response) {
+  map<int, int>::iterator itMap;
+  for (int maxI=vRes.size(), i=0; i<maxI; i++) {
+    // Print web module name or application name for mode "all"
+    response += "[\"" + vRes[i].first + "\",{";
+    itMap = (vRes[i].second).begin();
+    for (int j=0, maxJ=(vRes[i].second).size(); itMap != (vRes[i].second).end(); j++, itMap++) {
+      response += "\"" + boost::lexical_cast<string>(itMap->first)
+               + "\":" + boost::lexical_cast<string>(itMap->second);
+      if (j != (maxJ - 1)) response += ",";
+    }
+    response += "}]";
+    if (i != (maxI - 1)) response += ",";
+  }
+}
+
+/*!
  * \fn static void get_qsvar(const struct mg_request_info *request_info, const char *name, char *dst, size_t dst_len)
  * \brief Get a value of particular form variable.
  *
@@ -464,7 +513,7 @@ static void stats_app_week(struct mg_connection *conn,
                             const struct mg_request_info *ri)
 {
   bool is_jsonp;
-  int i, j, max, nbModules;
+  int i, j, max, nbModules, offset;
   char strDates[11];   // Number of dates. Ex: 31
   char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
   char strOffset[11];  // Date offset. Ex: 11
@@ -490,8 +539,10 @@ static void stats_app_week(struct mg_connection *conn,
   }
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
   assert(strDates[0] != '\0');
+  sscanf(strDates, "%d", &max);
   get_qsvar(ri, "offset", strOffset, sizeof(strOffset));
   assert(strOffset[0] != '\0');
+  sscanf(strOffset, "%d", &offset);
   get_qsvar(ri, "type", strType, sizeof(strType));
   assert(strType[0] != '\0');
   
@@ -501,9 +552,8 @@ static void stats_app_week(struct mg_connection *conn,
   mg_printf(conn, "%s", "[{");
   
   //-- Set each date to according offset in response.
-  sscanf(strOffset, "%d", &i);
-  sscanf(strDates, "%d", &max);
-  for(max += i; i < max; i++) {
+  max += offset;
+  for(i = offset; i < max; i++) {
     oss << "d_" << i;
     get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
     oss.str("");
@@ -520,20 +570,19 @@ static void stats_app_week(struct mg_connection *conn,
   mg_printf(conn, "\"%d\":\"month\",\"%d\":\"%s\"},", i, i+1, strDate);
   
   //-- Build visits stats in response for each modules.
+  vector< pair<string, map<int, int> > > vRes;
   sscanf(strModules, "%d", &nbModules);
   for(j = 0; j < nbModules; j++) {
+    map<int, int> mapResMod;
     oss << "m_" << j;
     get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
     oss.str("");
-    if (strDate[0] != '\0')
-      mg_printf(conn, "[\"%s\",{", strModule);
+    if (strDate[0] == '\0') continue;
       
     if (c.DEBUG_REQUESTS) cout << "stats_app_week: " << strModule << endl;
     
     //-- and each dates.
-    sscanf(strOffset, "%d", &i);
-    sscanf(strDates, "%d", &max);
-    for(max += i; i < max; i++) {
+    for(i = offset; i < max; i++) {
       oss << "d_" << i;
       get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
       oss.str("");
@@ -548,23 +597,31 @@ static void stats_app_week(struct mg_connection *conn,
         oss << strModule << '/' << strType << "/" << boost::gregorian::to_iso_extended_string(d);
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
-        oss.str("");
-        if (visit.length() <= 0)
+        if (visit.length() == 0) {
           visit = "0";
+        }
+        //if (c.DEBUG_REQUESTS) cout << "oss:" << oss.str() << " i: " << i << " visit:" << visit << endl;
+        oss.str("");
         // Return nb visit
-        mg_printf(conn, "\"%d\":%s", i, visit.c_str());
+        mapResMod.insert(pair<int, int>(i, boost::lexical_cast<int>(visit)));
       }
-      if (i != max - 1) mg_printf(conn, "%s", ",");
-    }
-    mg_printf(conn, "%s", "}]");
-    if (j != nbModules - 1) mg_printf(conn, "%s", ",");
+    }  
+    vRes.push_back(make_pair(strModule, mapResMod));
   }
   
+  //-- Add a SUM row serie
+  statsAddSumRow(vRes, max, offset);
+  
+  //-- Construct response
+  string response = "";
+  statsConstructResponse(vRes, response);
+  
   //-- Set end JSON string in response.
-  mg_printf(conn, "%s", "]");
+  response += "]";
   if (is_jsonp) {
-    mg_printf(conn, "%s", ")");
+   response += ")";
   }
+  mg_write(conn, response.c_str(), response.length());
 }
 
 /*!
@@ -836,39 +893,15 @@ static void stats_app_month(struct mg_connection *conn,
     if (c.DEBUG_APP_OTHERS) cout << endl;
   }
   
-  map<int, int>::iterator itMap;
-  
-  //-- Insert in front a sum of by days 
-  if (vRes.size() > 1) { // If only one module, sum is useless
-    map<int, int> mapSum;
-    for (it=setDate.begin(), i=0; it!=setDate.end(); i++, it++) {
-      mapSum.insert( pair<int,int>(i, 0) );
-    }
-    for (int maxI=vRes.size(), i=0; i<maxI; i++) {
-      for (itMap=(vRes[i].second).begin(); itMap != (vRes[i].second).end(); itMap++) {
-        mapSum[itMap->first] += itMap->second;
-      }
-    }
-    vRes.insert(vRes.begin(), make_pair("All", mapSum));
-  }
+  //-- Add a SUM row serie
+  statsAddSumRow(vRes, setDate.size(), 0);
   
   //-- Construct response
   string response = "";
-  for (int maxI=vRes.size(), i=0; i<maxI; i++) {
-    // Print web module name or application name for mode "all"
-    response += "[\"" + vRes[i].first + "\",{";
-    int maxJ = (vRes[i].second).size();
-    for (itMap=(vRes[i].second).begin(), j=0; itMap != (vRes[i].second).end(); j++, itMap++) {
-      response += "\"" + boost::lexical_cast<string>(itMap->first)
-               + "\":" + boost::lexical_cast<string>(itMap->second);
-      if (j != (maxJ - 1)) response += ",";
-    }
-    response += "}]";
-    if (i != (maxI - 1)) response += ",";
-  }
-  response += "]";
+  statsConstructResponse(vRes, response);
   
   //-- Set end JSON string in response.
+  response += "]";
   if (is_jsonp) {
     response += ")";
   }
