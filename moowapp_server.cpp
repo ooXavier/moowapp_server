@@ -316,8 +316,9 @@ static void stats_app_day(struct mg_connection *conn,
     oss << "d_" << i;
     get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
     oss.str("");
-    if (strDate[0] != '\0')
+    if (strDate[0] != '\0') {
       mg_printf(conn, "\"%d\":\"%s\",", i, strDate);
+    }
   }
   
   //-- Set Mode and Date in response.
@@ -331,131 +332,127 @@ static void stats_app_day(struct mg_connection *conn,
   //-- Get the day from the first date received
   oss << "d_0";
   get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
+  assert(strDate[0] != '\0');
   oss.str("");
   boost::gregorian::date d;
-  if (strDate[0] != '\0') {
-    // Convert timestamp to Y-m-d
-    boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
-    d = pt.date();
+  // Convert timestamp to Y-m-d
+  boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
+  d = pt.date();
   
-    //-- Build visits stats in response for each modules.
-    sscanf(strModules, "%d", &nbApps);
-    for(i = 0; i < nbApps; i++) {
-      if (mode == "all") {
-        oss << "p_" << i;
+  //-- Build visits stats in response for each modules or app.
+  vector< pair<string, map<int, int> > > vRes;
+  sscanf(strModules, "%d", &nbApps);
+  for(i = 0; i < nbApps; i++) {
+    map<int, int> mapResMod;
+    if (mode == "all") {
+      oss << "p_" << i;
+      get_qsvar(ri, oss.str().c_str(), strApplication, sizeof(strApplication));
+      oss.str("");
+      if (strModule[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS) cout << "stats_app_day - app=" << strApplication;
+
+      // Get nb module of that app in request
+      oss << "m_" << i;
+      get_qsvar(ri, oss.str().c_str(), strModules, sizeof(strModules));
+      oss.str("");
+      if (strModules[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app [" << flush;
+
+      // Loop to put modules from request in a set
+      setModules.clear();
+      
+      sscanf(strModules, "%d", &nbModules);
+      for(j = 0; j < nbModules; j++) {
+        oss << "m_" << i << "_" << j;
         get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
         oss.str("");
         if (strModule[0] == '\0') continue;
-        mg_printf(conn, "[\"%s\",{", strModule); // Print application name
-        if (c.DEBUG_REQUESTS) cout << "stats_app_day - app=" << strModule;
+        if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
+        setModules.insert(strModule);
 
-        // Get nb module of that app in request
-        oss << "m_" << i;
-        get_qsvar(ri, oss.str().c_str(), strModules, sizeof(strModules));
-        oss.str("");
-        if (strModules[0] == '\0') continue;
-        if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app [" << flush;
-
-        // Loop to put modules from request in a set
-        setModules.clear();
-        
-        sscanf(strModules, "%d", &nbModules);
-        for(j = 0; j < nbModules; j++) {
-          oss << "m_" << i << "_" << j;
-          get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
-          oss.str("");
-          if (strModule[0] == '\0') continue;
-          if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
-          setModules.insert(strModule);
-
-          // Remove this module from the whole app list
-          setOtherModules.erase(strModule);
-        }
-        if (c.DEBUG_REQUESTS) cout << "]" << endl;
-
-        //-- and each module in an app
-        for(it=setModules.begin(), hourVisit = k = 0; it!=setModules.end(); ) {
-          //-- Get nb visit from DB
-          for(int l=0, max=DB_TIMES_SIZE;l<max;l++) {
-            // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-            oss << *it << '/' << strType << "/" << boost::gregorian::to_iso_extended_string(d) << '/' << dbTimes[l];
-            // Search Key (oss) in DB
-            visit = dbw_get(db, oss.str());
-            iVisit = 0;
-            if (visit.length() > 0) {
-              sscanf(visit.c_str(), "%d", &iVisit);
-              ////if (*it == "bureau") cout << oss.str() << " = " << iVisit << endl;
-            }
-            oss.str("");
-            int timeVal = 0;
-            sscanf(dbTimes[l].c_str(), "%d", &timeVal);
-            if (floor(timeVal/10) == k) {
-              hourVisit += iVisit;
-            } else {
-              ////if (*it == "bureau") cout << "HERE k=" << k << " hourVisit=" << hourVisit << " dbTimes[i]=" << dbTimes[l] << endl;
-              // Return nb visit
-              mg_printf(conn, "\"%d\":%d, ", k, hourVisit);
-              hourVisit = iVisit;
-              k = floor(timeVal/10);
-            }
-          } 
-          ////if (*it == "bureau") cout << "LAST k=" << k << " hourVisit=" << hourVisit << endl;
-          // Return last nb visit
-          mg_printf(conn, "\"23\":%d", hourVisit);
-          oss.str("");
-          
-          if (c.DEBUG_REQUESTS) cout << *it << " => " << hourVisit << " visits." << endl;
-          it++;
-          if (it!=setModules.end()) mg_printf(conn, "%s", ",");
-        }
+        // Remove this module from the whole app list
+        setOtherModules.erase(strModule);
       }
-      else {
-        oss << "m_" << i;
-        get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
-        oss.str("");
-        if (strDate[0] != '\0')
-          mg_printf(conn, "[\"%s\",{", strModule);
-      
+      if (c.DEBUG_REQUESTS) cout << "]" << endl;
+
+      //-- and each module in an app
+      for(it=setModules.begin(), hourVisit = k = 0; it!=setModules.end(); it++) {
         //-- Get nb visit from DB
-        k = hourVisit = 0;
         for(int l=0, max=DB_TIMES_SIZE;l<max;l++) {
           // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-          oss << strModule << '/' << boost::gregorian::to_iso_extended_string(d) << '/' << dbTimes[l];
+          oss << *it << '/' << strType << "/" << boost::gregorian::to_iso_extended_string(d) << '/' << dbTimes[l];
           // Search Key (oss) in DB
           visit = dbw_get(db, oss.str());
           iVisit = 0;
           if (visit.length() > 0) {
             sscanf(visit.c_str(), "%d", &iVisit);
-            ////cout << oss.str() << " = " << iVisit << endl;
+            ////if (*it == "bureau") cout << oss.str() << " = " << iVisit << endl;
           }
-          oss.str("");
           int timeVal = 0;
           sscanf(dbTimes[l].c_str(), "%d", &timeVal);
           if (floor(timeVal/10) == k) {
             hourVisit += iVisit;
-            ////cout << "hourVisit=" << hourVisit << endl;
           } else {
-            ////cout << "HERE k=" << k << " hourVisit=" << hourVisit << endl;
+            ////if (*it == "bureau") 
+            ////if (c.DEBUG_REQUESTS) cout << " visits for " << oss.str() << " k=" << k << " hourVisit=" << hourVisit << " dbTimes[i]=" << dbTimes[l] << endl;
             // Return nb visit
-            mg_printf(conn, "\"%d\":%d, ", k, hourVisit);
+            mapResMod.insert(pair<int, int>(k, hourVisit));
             hourVisit = iVisit;
             k = floor(timeVal/10);
           }
-        } 
-        ////cout << "LAST k=" << k << " hourVisit=" << hourVisit << endl;
+          oss.str("");
+        }
+        ////if (*it == "bureau") cout << "LAST k=" << k << " hourVisit=" << hourVisit << endl;
         // Return last nb visit
-        mg_printf(conn, "\"23\":%d", hourVisit);
+        mapResMod.insert(pair<int, int>(23, hourVisit));
       }
     
-      mg_printf(conn, "%s", "}]");
-      if (i != nbApps - 1) mg_printf(conn, "%s", ",");
+      vRes.push_back(make_pair(strApplication, mapResMod));
+    }
+    else {
+      oss << "m_" << i;
+      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      oss.str("");
+      if (strModule[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS) cout << "stats_app_day - module=" << strModule;
+    
+      //-- Get nb visit from DB
+      k = hourVisit = 0;
+      for(int l=0, max=DB_TIMES_SIZE;l<max;l++) {
+        // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
+        oss << strModule << '/' << strType << "/" << boost::gregorian::to_iso_extended_string(d) << '/' << dbTimes[l];
+        // Search Key (oss) in DB
+        visit = dbw_get(db, oss.str());
+        iVisit = 0;
+        if (visit.length() > 0) {
+          sscanf(visit.c_str(), "%d", &iVisit);
+          ////if (c.DEBUG_REQUESTS) cout << oss.str() << " = " << iVisit << endl;
+        }
+        int timeVal = 0;
+        sscanf(dbTimes[l].c_str(), "%d", &timeVal);
+        if (floor(timeVal/10) == k) {
+          hourVisit += iVisit;
+          ////cout << "hourVisit=" << hourVisit << endl;
+        } else {
+          ////if (c.DEBUG_REQUESTS) cout << " visits for " << oss.str() << " k=" << k << " hourVisit=" << hourVisit << endl;
+          // Return nb visit
+          mapResMod.insert(pair<int, int>(k, hourVisit));
+          hourVisit = iVisit;
+          k = floor(timeVal/10);
+        }
+        oss.str("");
+      } 
+      ////if (c.DEBUG_REQUESTS) cout << "LAST k=" << k << " hourVisit=" << hourVisit << endl;
+      // Return last nb visit
+      mapResMod.insert(pair<int, int>(23, hourVisit));
+      
+      vRes.push_back(make_pair(strModule, mapResMod));
     }
   }
   
   //-- In all mode, add an "Others" application
   if (mode == "all" && setOtherModules.size() > 0) {
-    mg_printf(conn, ", [\"%s\",{", "Autres"); // Print "Others" name
-    
+    map<int, int> mapResMod;
     if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
     
     hourVisit = 0;
@@ -483,23 +480,30 @@ static void stats_app_day(struct mg_connection *conn,
       } else {
         ///if (c.DEBUG_APP_OTHERS) cout << "HERE k=" << k << " dbTimes[i]=" << timeVal << " hourVisit=" << hourVisit << endl;
         // Return nb visit
-        mg_printf(conn, "\"%d\":%d, ", k, hourVisit);
+        mapResMod.insert(pair<int,int>(k, hourVisit));
         hourVisit = nbVisitForApp;
         k = floor(timeVal/10);
       }
     }
     // Return last nb visit
-    mg_printf(conn, "\"23\":%d", hourVisit);
+    mapResMod.insert(pair<int,int>(23, hourVisit));
     oss.str("");
-    
-    mg_printf(conn, "%s", "}]");
+    vRes.push_back(make_pair("Others", mapResMod));
   }
   
+  //-- Add a SUM row serie
+  statsAddSumRow(vRes, 24, 0); // 24hours a day without offset
+  
+  //-- Construct response
+  string response = "";
+  statsConstructResponse(vRes, response);
+  
   //-- Set end JSON string in response.
-  mg_printf(conn, "%s", "]");
+  response += "]";
   if (is_jsonp) {
-    mg_printf(conn, "%s", ")");
+    response += ")";
   }
+  mg_write(conn, response.c_str(), response.length());
 }
 
 /*!
