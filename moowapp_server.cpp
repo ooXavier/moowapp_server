@@ -205,7 +205,7 @@ static void stats_app_intra(struct mg_connection *conn,
                             const struct mg_request_info *ri)
 {
   bool is_jsonp;
-  int i, j, max, nbModules, offset;
+  int i, max, nbModules, offset;
   char strDates[11];   // Number of dates. Ex: 60
   char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
   char strOffset[11];  // Date offset. Ex: 60
@@ -1103,7 +1103,7 @@ static void *callback(enum mg_event event,
  * \param c Config file.
  */
 void compressionThread(const Config c) {
-  uint64_t i, max;
+  uint64_t i;
   int dayVisit, monthNumber;
   ostringstream oss;
   string visit;
@@ -1187,21 +1187,6 @@ void compressionThread(const Config c) {
         }
       
         // Dump DB
-        /*if(c.DEBUG_LOGS) cout << "C. Dump DB" << endl;
-        vector< pair<string, string> > myDb = dbw_get_all(db);
-      
-        // Drop files
-        if(c.DEBUG_LOGS) cout << "C. Drop DB files" << endl;
-        dbw_drop(c.DB_PATH.c_str());
-        //dbw_drop(db);  //-1.8.1
-      
-        // Restore DB
-        if(c.DEBUG_LOGS) cout << "C. Restore DB" << endl;
-        db = dbw_open(c.DB_BUFFER, c.DB_PATH.c_str());
-        for (i=0, max=myDb.size(); i<max; i++) {
-          dbw_add(db, myDb[i].first, myDb[i].second);
-          if(c.DEBUG_LOGS) cout << i << "/" << max << " - key=" << myDb[i].first << " - value=" << myDb[i].second << endl;
-        }*/
         dbw_flush(db);
         
         cout << "----- COMPRESSION END now -----" << endl;
