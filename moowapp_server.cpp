@@ -121,6 +121,60 @@ static void get_qsvar(const struct mg_request_info *request_info,
   mg_get_var(qs, strlen(qs == NULL ? "" : qs), name, dst, dst_len);
 }
 
+
+void filteringPeriod(const struct mg_request_info *ri, int i, string &strYearMonth, set<string> &setDateToKeep) {
+  char strAppDays[61]; // Days in the month, starting at 0. Ex: 0-30 or 0-2,4,6-30
+  ostringstream oss;
+  
+  // Get periods for that project (filtering)
+  oss << "p_" << i << "_d";
+  get_qsvar(ri, oss.str().c_str(), strAppDays, sizeof(strAppDays));
+  oss.str("");
+  if (strAppDays[0] == '\0') sprintf(strAppDays, "1-31"); // Default value : complete month
+  //if (c.DEBUG_REQUESTS) cout << " days=" << strAppDays;
+
+  //-- Store only date to be returned
+  if (strcmp(strAppDays, "1-31") != 0) {
+  
+    // Split sequences separated by coma ; Ex 1-4,6,8-12,15
+    vector<string> vectStrComa;
+    boost::split(vectStrComa, strAppDays, boost::is_any_of(","));
+    for(vector<string>::iterator tok_iter = vectStrComa.begin(); tok_iter != vectStrComa.end(); ++tok_iter) {
+    
+      size_t found = (*tok_iter).find("-");
+      if (found != string::npos) {
+        // Split sequences separated by - ; Ex: 3-30
+        vector<string> vectStrDash;
+        boost::split(vectStrDash, *tok_iter, boost::is_any_of("-"));
+        vector<string>::iterator ttok_iter = vectStrDash.begin();
+        int start, end;
+        try {
+          start = boost::lexical_cast<int>(*ttok_iter);
+          if(ttok_iter != vectStrDash.end()) {
+            ++ttok_iter;
+          }
+          end = boost::lexical_cast<int>(*ttok_iter);
+          for(;start <= end; ++start) {
+            oss << strYearMonth << std::setw(2) << std::setfill('0') << start;
+            //if (c.DEBUG_REQUESTS) cout <<  " Added: " << oss.str();
+            setDateToKeep.insert(oss.str());
+            oss.str("");
+          }
+        } catch(boost::bad_lexical_cast &) {}
+      
+      } else {
+        // Single numbers : Ex: 4,6,8
+        try {
+          oss << strYearMonth << std::setw(2) << std::setfill('0') << *tok_iter;
+          //if (c.DEBUG_REQUESTS) cout <<  " Added: " << oss.str();
+          setDateToKeep.insert(oss.str());
+          oss.str("");
+        } catch(boost::bad_lexical_cast &) {}
+      }
+    }
+  }
+}
+
 /*!
  * \fn static bool handle_jsonp(struct mg_connection *conn, const struct mg_request_info *request_info)
  * \brief Tell if the request is a JSON call
@@ -151,19 +205,22 @@ static void stats_app_intra(struct mg_connection *conn,
                             const struct mg_request_info *ri)
 {
   bool is_jsonp;
-  int i, j, max, nbModules;
+  int i, j, max, nbModules, offset;
   char strDates[11];   // Number of dates. Ex: 60
   char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
   char strOffset[11];  // Date offset. Ex: 60
   char strModules[11]; // Number of modules. Ex: 4
   char strModule[65];  // Modules name. Ex: gerer_connaissance
   char strMode[4];     // Mode. Ex: app or all
+  char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
   istringstream ss;
   string mode;
   string visit;
   time_t tStamp;
   struct tm * timeinfo;
+  map<int, string> mapDate;
+  map<int, string>::iterator it;
   
   //-- Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
@@ -181,74 +238,79 @@ static void stats_app_intra(struct mg_connection *conn,
   }
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
   assert(strDates[0] != '\0');
+  sscanf(strDates, "%d", &max);
   get_qsvar(ri, "offset", strOffset, sizeof(strOffset));
   assert(strOffset[0] != '\0');
+  sscanf(strOffset, "%d", &offset);
+  get_qsvar(ri, "type", strType, sizeof(strType));
+  assert(strType[0] != '\0');
   
   //-- Set each date to according offset in response.
-  sscanf(strOffset, "%d", &i);
-  sscanf(strDates, "%d", &max);
-  for(max += i; i < max; i++) {
+  max += offset;
+  for(i = offset; i < max; i++) {
     oss << "d_" << i;
     get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
     oss.str("");
-    if (strDate[0] != '\0')
+    if (strDate[0] != '\0') {
       mg_printf(conn, "\"%d\":\"%s\",", i, strDate);
+      
+      // Convert timestamp to Y-m-d
+      ss.str(strDate);
+      ss >> tStamp; //Ex: 1303639200;
+      timeinfo = localtime(&tStamp);
+      strftime(strDate, 31, "%Y-%m-%d", timeinfo);
+      mapDate.insert( pair<int,string>(i, strDate) );
+    }
   }
   
   //-- Set Mode and Date in response.
   // Extract "Day NDay Month" from timestamp
-  ss.str(strDate);
-  ss >> tStamp; //Ex: 1303639200;
-  timeinfo = localtime(&tStamp);
   strftime(strDate, 31, "%A %d %B", timeinfo);
   mg_printf(conn, "\"%d\":\"intra\",\"%d\":\"%s\"},", i, i+1, strDate);
   
   //-- Build visits stats in response for each modules.
+  vector< pair<string, map<int, int> > > vRes;
   sscanf(strModules, "%d", &nbModules);
-  for(j = 0; j < nbModules; j++) {
-    oss << "m_" << j;
+  for(i = 0; i < nbModules; i++) {
+    map<int, int> mapResMod;
+    oss << "m_" << i;
     get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
     oss.str("");
-    if (strDate[0] != '\0')
-      mg_printf(conn, "[\"%s\",{", strModule);
+    if (strModule[0] == '\0') continue;
+    if (c.DEBUG_REQUESTS) cout << "stats_app_intra - module=" << strModule << endl;
       
     //-- and each dates.
-    sscanf(strOffset, "%d", &i);
-    sscanf(strDates, "%d", &max);
-    for(max += i; i < max; i++) {
-      oss << "d_" << i;
-      get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
+    for(it=mapDate.begin(); it!=mapDate.end(); it++) {
+      //-- Get nb visit from DB
+      // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
+      oss << strModule << '/' << strType << "/" << (*it).second << '/' << (*it).first;
+      // Search Key (oss) in DB
+      visit = dbw_get(db, oss.str());
       oss.str("");
-      if (strDate[0] != '\0') {
-        //-- Get nb visit from DB
-        
-        // Convert timestamp to Y-m-d
-        ss.str(strDate);
-        ss >> tStamp; //Ex: 1303639200;
-        timeinfo = localtime(&tStamp);
-        strftime(strDate, 31, "%Y-%m-%d", timeinfo);
-        
-        // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-        oss << strModule << '/' << strDate << '/' << i;
-        // Search Key (oss) in DB
-        visit = dbw_get(db, oss.str());
-        if (visit.length() <= 0)
-          visit = "0";
-        // Return nb visit
-        mg_printf(conn, "\"%d\":%s", i, visit.c_str());
-        oss.str("");
+      int iVisit = 0;
+      if (visit.length() > 0) {
+        // Update nb visit of the app for this day
+        sscanf(visit.c_str(), "%d", &iVisit);
       }
-      if (i != max - 1) mg_printf(conn, "%s", ",");
+      // Return nb visit
+      mapResMod.insert(pair<int, int>((*it).first, iVisit));
     }
-    mg_printf(conn, "%s", "}]");
-    if (j != nbModules - 1) mg_printf(conn, "%s", ",");
+    vRes.push_back(make_pair(strModule, mapResMod));
   }
   
+  //-- Add a SUM row serie
+  statsAddSumRow(vRes, (max-offset), offset); // 36 a day without offset
+  
+  //-- Construct response
+  string response = "";
+  statsConstructResponse(vRes, response);
+  
   //-- Set end JSON string in response.
-  mg_printf(conn, "%s", "]");
+  response += "]";
   if (is_jsonp) {
-    mg_printf(conn, "%s", ")");
+    response += ")";
   }
+  mg_write(conn, response.c_str(), response.length());
   
   //In needed, below is a mocked response
   /*mg_printf(conn, "%s", "[{\"60\":1313726400,\"61\":1313727000,\"62\":1313727600,\"63\":1313728200,\"64\":1313728800,\"65\":1313729400,\"66\":1313730000,\"67\":1313730600,\"68\":1313731200,\"69\":1313731800,\"70\":1313732400,\"71\":1313733000,\"72\":1313733600,\"73\":1313734200,\"74\":1313734800,\"75\":1313735400,\"76\":1313736000,\"77\":1313736600,\"78\":1313737200,\"79\":1313737800,\"80\":1313738400,\"81\":1313739000,\"82\":1313739600,\"83\":1313740200,\"84\":1313740800,\"85\":1313741400,\"86\":1313742000,\"87\":1313742600,\"88\":1313743200,\"89\":1313743800,\"90\":1313744400,\"91\":1313745000,\"92\":1313745600,\"93\":1313746200,\"94\":1313746800,\"95\":1313747400,\"96\":\"intra\",\"97\":\"Vendredi 19 août 2011\"},");
@@ -517,11 +579,12 @@ static void stats_app_week(struct mg_connection *conn,
                             const struct mg_request_info *ri)
 {
   bool is_jsonp;
-  int i, j, max, nbModules, offset;
+  int i, j, max, nbApps, nbModules, offset;
   char strDates[11];   // Number of dates. Ex: 31
   char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
   char strOffset[11];  // Date offset. Ex: 11
   char strModules[11]; // Number of modules. Ex: 4
+  char strApplication[65];  // Application name. Ex: Calendar
   char strModule[65];  // Modules name. Ex: gerer_connaissance
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
@@ -529,8 +592,12 @@ static void stats_app_week(struct mg_connection *conn,
   istringstream ss;
   string mode;
   string visit;
+  string date;
   time_t tStamp;
   struct tm * timeinfo;
+  set<string> setDate, setModules, setOtherModules;
+  set<string>::iterator it, itt;
+  unsigned int nbVisitForApp;
 
   //-- Get parameters in request.
   get_qsvar(ri, "mode", strMode, sizeof(strMode));
@@ -538,6 +605,7 @@ static void stats_app_week(struct mg_connection *conn,
   mode = string(strMode);
   if (mode == "all") {
     get_qsvar(ri, "apps", strModules, sizeof(strModules));
+    getDBModules(setOtherModules);
   } else {
     get_qsvar(ri, "modules", strModules, sizeof(strModules));
   }
@@ -561,9 +629,20 @@ static void stats_app_week(struct mg_connection *conn,
     oss << "d_" << i;
     get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
     oss.str("");
-    if (strDate[0] != '\0')
+    if (strDate[0] != '\0') {
       mg_printf(conn, "\"%d\":\"%s\",", i, strDate);
+      
+      // Convert timestamp to Y-m-d
+      boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
+      boost::gregorian::date d = pt.date();
+      date = boost::gregorian::to_iso_extended_string(d);
+      setDate.insert(date);
+    }
   }
+  
+  //-- Save Year-Month for later
+  size_t found = date.find_last_of("-");
+  string strYearMonth = date.substr(0, found+1);
   
   //-- Set Mode and Date in response.
   // Extract "Day NDay Month" from timestamp
@@ -575,30 +654,91 @@ static void stats_app_week(struct mg_connection *conn,
   
   //-- Build visits stats in response for each modules.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules, "%d", &nbModules);
-  for(j = 0; j < nbModules; j++) {
+  sscanf(strModules, "%d", &nbApps);
+  for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
-    oss << "m_" << j;
-    get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
-    oss.str("");
-    if (strDate[0] == '\0') continue;
-      
-    if (c.DEBUG_REQUESTS) cout << "stats_app_week: " << strModule << endl;
-    
-    //-- and each dates.
-    for(i = offset; i < max; i++) {
-      oss << "d_" << i;
-      get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
+    if (mode == "all") {
+      oss << "p_" << i;
+      get_qsvar(ri, oss.str().c_str(), strApplication, sizeof(strApplication));
       oss.str("");
-      if (strDate[0] != '\0') {
+      if (strApplication[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS) cout << "stats_app_week - app=" << strApplication;
+      
+      //-- Filter for days
+      set<string> setDateToKeep;
+      filteringPeriod(ri, i, strYearMonth, setDateToKeep);
+      
+      // Get nb module of that app in request
+      oss << "m_" << i;
+      get_qsvar(ri, oss.str().c_str(), strModules, sizeof(strModules));
+      oss.str("");
+      if (strModules[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app [" << flush;
+      
+      // Loop to put modules from request in a set
+      setModules.clear();
+      sscanf(strModules, "%d", &nbModules);
+      for(j = 0; j < nbModules; j++) {
+        oss << "m_" << i << "_" << j;
+        get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+        oss.str("");
+        if (strModule[0] == '\0') continue;
+        if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
+        setModules.insert(strModule);
+        
+        // Remove this module from the whole app list
+        setOtherModules.erase(strModule);
+      }
+      if (c.DEBUG_REQUESTS) cout << "]" << endl;
+        
+      //-- and loop for each dates.
+      sscanf(strOffset, "%d", &j);
+      for(it=setDate.begin(); it!=setDate.end(); j++) {
+        nbVisitForApp = 0;
+        // If *it is not in setDateToKeep, return 0 values
+        set<string>::iterator itSet = setDateToKeep.find(*it);
+        if ((setDateToKeep.size() == 0) || (itSet != setDateToKeep.end())) {
+          //-- and each module in an app
+          for(itt=setModules.begin(); itt!=setModules.end(); itt++) {
+            //-- Get nb visit from DB
+            // Build Key ex: "creer_modifier_retrocession/1/2011-04-24";
+            oss << *itt << '/' << strType << "/" << *it;
+            // Search Key (oss) in DB
+            visit = dbw_get(db, oss.str());
+            oss.str("");
+            int iVisit = 0;
+            if (visit.length() > 0) {
+              // Update nb visit of the app for this day
+              sscanf(visit.c_str(), "%d", &iVisit);
+              nbVisitForApp += iVisit;
+            }
+          }
+        }
+        if (c.DEBUG_REQUESTS) cout << *it << " => " << nbVisitForApp << " visits." << endl;
+        it++;
+        
+        // Return nb visit
+        ///if (nbVisitForApp != 0){
+          mapResMod.insert(pair<int, int>(j, nbVisitForApp));
+        ///}
+      }
+      
+      vRes.push_back(make_pair(strApplication, mapResMod));
+    }
+    else {
+      oss << "m_" << i;
+      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      oss.str("");
+      if (strDate[0] == '\0') continue;
+      
+      if (c.DEBUG_REQUESTS) cout << "stats_app_week: " << strModule << endl;
+    
+      //-- and each dates.
+      sscanf(strOffset, "%d", &j);
+      for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
         //-- Get nb visit from DB
-        
-        // Convert timestamp to Y-m-d
-        boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
-        boost::gregorian::date d = pt.date();
-        
         // Build Key ex: "creer_modifier_retrocession/2011-04-24";
-        oss << strModule << '/' << strType << "/" << boost::gregorian::to_iso_extended_string(d);
+        oss << strModule << '/' << strType << "/" << *it;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         if (visit.length() == 0) {
@@ -606,11 +746,47 @@ static void stats_app_week(struct mg_connection *conn,
         }
         //if (c.DEBUG_REQUESTS) cout << "oss:" << oss.str() << " i: " << i << " visit:" << visit << endl;
         oss.str("");
+      
         // Return nb visit
-        mapResMod.insert(pair<int, int>(i, boost::lexical_cast<int>(visit)));
+        mapResMod.insert(pair<int, int>(j, boost::lexical_cast<int>(visit)));
       }
-    }  
-    vRes.push_back(make_pair(strModule, mapResMod));
+      vRes.push_back(make_pair(strModule, mapResMod));
+    }
+  }
+  
+  //-- In all mode, add an "Others" application
+  if (mode == "all" && setOtherModules.size() > 0) {
+    map<int, int> mapResMod;
+    if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
+    
+    sscanf(strOffset, "%d", &j);
+    for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
+      for(itt=setOtherModules.begin(), nbVisitForApp = 0; itt!=setOtherModules.end(); itt++) {
+        //-- Get nb visit from DB
+        // Build Key ex: "creer_modifier_retrocession/2011-04-24";
+        oss << *itt << '/' << strType << "/" << *it;
+        // Search Key (oss) in DB
+        visit = dbw_get(db, oss.str());
+        oss.str("");
+        int iVisit = 0;
+        if (visit.length() > 0) {
+          // Update nb visit of the app for this day
+          sscanf(visit.c_str(), "%d", &iVisit);
+          nbVisitForApp += iVisit;
+        }
+        
+        if (c.DEBUG_APP_OTHERS && it==setDate.begin()) cout << *itt << ", ";
+      }
+      
+      // Return nb visit if != 0
+      ///if (nbVisitForApp != 0){
+        mapResMod.insert(pair<int,int>(j, nbVisitForApp));
+      ///}
+    }
+    
+    vRes.push_back(make_pair("Others", mapResMod));
+    
+    if (c.DEBUG_APP_OTHERS) cout << endl;
   }
   
   //-- Add a SUM row serie
@@ -639,14 +815,13 @@ static void stats_app_month(struct mg_connection *conn,
                             const struct mg_request_info *ri)
 {
   bool is_jsonp;
-  int i, j, max, nbApps, nbModules;
+  int i, j, max, nbApps, nbModules, offset;
   char strDates[11];   // Number of dates. Ex: 31
   char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
   char strOffset[11];  // Date offset. Ex: 11
   char strModules[11]; // Number of modules. Ex: 4
   char strApplication[65];  // Application name. Ex: Calendar
   char strModule[65];  // Modules name. Ex: module_test_1
-  char strAppDays[61]; // Days in the month, starting at 0. Ex: 0-30 or 0-2,4,6-30
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1 or 2 or 3
   ostringstream oss;
@@ -673,8 +848,10 @@ static void stats_app_month(struct mg_connection *conn,
   assert(strModules[0] != '\0');
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
   assert(strDates[0] != '\0');
+  sscanf(strDates, "%d", &max);
   get_qsvar(ri, "offset", strOffset, sizeof(strOffset));
   assert(strOffset[0] != '\0');
+  sscanf(strOffset, "%d", &offset);
   get_qsvar(ri, "type", strType, sizeof(strType));
   assert(strType[0] != '\0');
   
@@ -686,9 +863,8 @@ static void stats_app_month(struct mg_connection *conn,
   if (c.DEBUG_REQUESTS) cout << "nb=" << strModules << endl;
   
   //-- Create a set for the Dates to loop easily
-  sscanf(strOffset, "%d", &i);
-  sscanf(strDates, "%d", &max);
-  for(max += i; i < max; i++) {
+  max += offset;
+  for(i = offset; i < max; i++) {
     oss << "d_" << i;
     get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
     oss.str("");
@@ -727,54 +903,9 @@ static void stats_app_month(struct mg_connection *conn,
       if (strApplication[0] == '\0') continue;
       if (c.DEBUG_REQUESTS) cout << "stats_app_month - app=" << strApplication;
       
-      // Get periods for that project (filtering)
-      oss << "p_" << i << "_d";
-      get_qsvar(ri, oss.str().c_str(), strAppDays, sizeof(strAppDays));
-      oss.str("");
-      if (strAppDays[0] == '\0') sprintf(strAppDays, "1-31"); // Default value : complete month
-      //if (c.DEBUG_REQUESTS) cout << " days=" << strAppDays;
-      
-      //-- Store only date to be returned
+      //-- Filter for days
       set<string> setDateToKeep;
-      if (strcmp(strAppDays, "1-31") != 0) {
-        
-        // Split sequences separated by coma ; Ex 1-4,6,8-12,15
-        vector<string> vectStrComa;
-        boost::split(vectStrComa, strAppDays, boost::is_any_of(","));
-        for(vector<string>::iterator tok_iter = vectStrComa.begin(); tok_iter != vectStrComa.end(); ++tok_iter) {
-          
-          found = (*tok_iter).find("-");
-          if (found != string::npos) {
-            // Split sequences separated by - ; Ex: 3-30
-            vector<string> vectStrDash;
-            boost::split(vectStrDash, *tok_iter, boost::is_any_of("-"));
-            vector<string>::iterator ttok_iter = vectStrDash.begin();
-            int start, end;
-            try {
-              start = boost::lexical_cast<int>(*ttok_iter);
-              if(ttok_iter != vectStrDash.end()) {
-                ++ttok_iter;
-              }
-              end = boost::lexical_cast<int>(*ttok_iter);
-              for(;start <= end; ++start) {
-                oss << strYearMonth << std::setw(2) << std::setfill('0') << start;
-                //if (c.DEBUG_REQUESTS) cout <<  " Added: " << oss.str();
-                setDateToKeep.insert(oss.str());
-                oss.str("");
-              }
-            } catch(boost::bad_lexical_cast &) {}
-            
-          } else {
-            // Single numbers : Ex: 4,6,8
-            try {
-              oss << strYearMonth << std::setw(2) << std::setfill('0') << *tok_iter;
-              //if (c.DEBUG_REQUESTS) cout <<  " Added: " << oss.str();
-              setDateToKeep.insert(oss.str());
-              oss.str("");
-            } catch(boost::bad_lexical_cast &) {}
-          }
-        }
-      }
+      filteringPeriod(ri, i, strYearMonth, setDateToKeep);
       
       // Get nb module of that app in request
       oss << "m_" << i;
