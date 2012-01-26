@@ -149,7 +149,7 @@ unsigned long readLogFile(Config c, const string strFile, set<string> &setModule
   // all of the data has been read; close the file.
   size = ftell(pFile);
   fclose (pFile);
-  cout << ">> Visits inserted: " << myI << " from " << i << " lines." << endl;
+  cout << " - Visits inserted: " << myI << " from " << i << " lines - " << flush;
   
   return size;
 }

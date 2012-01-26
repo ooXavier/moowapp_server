@@ -1210,14 +1210,13 @@ void compressionThread(const Config c) {
  * \brief Do a continuous read of a file and call the line analyser.
  *
  * \param c Config file containing the path/name of file to read.
+ * \param readPos Position in file to read (default: 0).
  */
-void readLogThread(const Config c) {
+void readLogThread(const Config c, unsigned long readPos) {
   string data;
-  unsigned long readPos = 0;
-  
-  //TODO:
-  // Find last line of log in DB
-  // Start from the corresponding date line in file
+  struct tm * timeinfo;
+  time_t now;
+  char buffer[80];
   
   try {
     while(true) {
@@ -1226,8 +1225,10 @@ void readLogThread(const Config c) {
       // Write to file atomically
       boost::mutex::scoped_lock lock(mutex);
       
-      time_t now = time(0);
-      cout << "----- READ LOG now: " << now << " -----" << endl;
+      now = time(0);
+      timeinfo = localtime(&now);
+      strftime (buffer,80,"%c",timeinfo);
+      cout << buffer << " - READ LOG (" << c.LOG_FILE_PATH << "): starting at " << readPos << flush;
       
       //-- Reconstruct list of modules
       set<string> setModules;
@@ -1235,7 +1236,7 @@ void readLogThread(const Config c) {
       getDBModules(setModules);
     
       readPos = readLogFile(c, c.LOG_FILE_PATH, setModules, readPos);
-      if (c.DEBUG_LOGS) cout << "Current pos in myfile.txt: " << readPos << "bytes." << endl;
+      cout << "until " << readPos << "." << endl;
     
       // Update list of modules in DB
       string modules = "";
@@ -1253,11 +1254,19 @@ void readLogThread(const Config c) {
   boost::interprocess::named_mutex::remove("fstream_named_mutex");
 }
 
-int main(void) {
+int main(int argc, char* argv[]) {
   // Announce yourself
   cout << "Welcome to mooWApp." << endl;
   
   //-- Read configuration file
+  
+  //-- Look for arguments
+  if (argc <= 1 || argc > 2) {
+      cout << "Usage: " << argv[0] << " <Line number => 0 for first line>" << endl;
+      exit(1);
+  }
+
+  unsigned long readPos = atol(argv[1]);
   
   //-- Open the database
   //db = dbw_open(c.DB_BUFFER, c.DB_PATH.c_str());
@@ -1265,14 +1274,15 @@ int main(void) {
   db = dbw_open(&db_, c.DB_PATH.c_str());
   
   //-- DB Compact task set-up
+  boost::thread cThread;
   if (c.COMPRESSION) {
     cout << "DB task start..." << endl;
-    boost::thread cThread(&compressionThread, c);
+    cThread = boost::thread(&compressionThread, c);
   }
 
   //-- Start reading file
   cout << "Read file task start..." << endl;
-  boost::thread rThread(&readLogThread, c);
+  boost::thread rThread(&readLogThread, c, readPos);
   
   //-- Json web server set-up
   struct mg_context *ctx;
@@ -1281,6 +1291,8 @@ int main(void) {
   ctx = mg_start(&callback, NULL, soptions);
   getchar();  // Wait until user hits "enter" or any car
   mg_stop(ctx);
+  cThread.interrupt();
+  rThread.interrupt();
   
   //-- DB Release
   dbw_close(db);
