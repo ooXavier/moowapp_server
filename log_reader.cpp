@@ -8,6 +8,7 @@
 #include <string>
 #include <vector> // Splited string
 #include <set> // Set of modules
+//#include <fstream> // ifstream
 
 // Boost
 #include <boost/algorithm/string.hpp> // Split
@@ -126,30 +127,87 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   return true;
 }
 
+// ifstream method is blocking some calls, so the C style is better here
+/*unsigned long readLogFile(Config c, const string strFile, set<string> &setModules, unsigned long readPos) {
+  ifstream ifs (strFile.c_str(), ios::binary );
+  if (! ifs) {
+    cerr << "Error opening file" << strFile << endl;
+    return 0;
+  }
+  
+  // set the file to point to the last read position
+  ifs.seekg(readPos);
+
+  int i = 0; // nb of lines in file
+  int myI = 0; // nb of lines matching stg
+  string line;
+  
+  if (c.DEBUG_LOGS) cout << "> Parsing logs" << endl;
+  
+  while (getline(ifs, line)) {
+    readPos = ifs.tellg();
+    const string str = line;
+    //if (analyseLine(c, str, setModules)) myI++;
+    i++;
+  }
+  
+  // all of the data has been read; close the file.
+  ifs.close();
+  cout << ". Visits inserted: " << myI << " from " << i << " lines." << flush;
+  
+  return readPos;
+}*/
+
 unsigned long readLogFile(Config c, const string strFile, set<string> &setModules, unsigned long readPos) {
+  char * buffer;
+  unsigned long size, lSize;
   FILE * pFile = fopen(strFile.c_str(), "rb");
   if (pFile == NULL) {
     cerr << "Error opening file: "<< strFile << endl;
     return 0;
   }
-  fseek(pFile, readPos, SEEK_SET);
   
-  char line[2048];
-  int i = 0; // nb of lines in file
-  int myI = 0; // nb of lines matching stg
-  unsigned long size;
-  
-  if (c.DEBUG_LOGS) cout << "> Parsing logs" << endl;
-  while(fgets(line, sizeof(line), pFile) != NULL) {
-    const string str = line;
-    if (analyseLine(c, str, setModules)) myI++;
-    i++;
+  // obtain file size:
+  fseek (pFile, 0, SEEK_END);
+  lSize = ftell (pFile);
+  if (lSize == readPos) {
+    fclose (pFile);
+    cout << ". Already at end of file.";
+    return lSize;
   }
+  lSize -= readPos;
+  fseek(pFile, readPos, SEEK_SET);
+
+  // allocate memory to contain the file:
+  buffer = (char*) malloc (sizeof(char) * lSize);
+  if (buffer == NULL) {cerr << endl << "Memory error" << endl; return 0;}
+
+  // copy the file into the memory buffer:
+  size_t result = fread (buffer, 1, lSize, pFile);
+  if (result != lSize) {cerr << endl << "Reading error" << endl; return 0;}
   
   // all of the data has been read; close the file.
   size = ftell(pFile);
   fclose (pFile);
-  cout << " - Visits inserted: " << myI << " from " << i << " lines - " << flush;
+
+  int i = 0; // nb of lines in file
+  int myI = 0; // nb of lines matching stg
+  
+  if (c.DEBUG_LOGS) cout << "> Parsing logs" << endl;
+  
+  string linedata;
+  for (unsigned long j=0; j<lSize; j++) { // loop thru the buffer
+    linedata.push_back(buffer[j]); // push character into string
+    if(buffer[j] == 13 || buffer[j] == 10) { // until we hit newline
+      const string str = linedata;
+      if (analyseLine(c, str, setModules)) myI++;
+      i++;
+      linedata.clear(); // Clear "temporary string"
+    }
+  }
+  free (buffer);
+  
+  cout << ". Visits inserted: " << myI << " from " << i << " lines." << flush;
   
   return size;
 }
