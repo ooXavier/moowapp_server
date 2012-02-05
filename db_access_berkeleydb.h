@@ -13,7 +13,7 @@
 // database
 #include <db_cxx.h>
 
-Db *dbw_open(Db *db, const char *basedir);
+int dbw_open(Db *db, const char *basedir);
 std::string dbw_get(Db *db, std::string strKey);
 //std::vector< std::pair<std::string, std::string> > dbw_get_all(struct nessDB *db);
 int dbw_add(Db *db, std::string strKey, std::string strValue);

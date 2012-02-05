@@ -29,8 +29,11 @@ int main() {
   // open the database
   //db = dbw_open(c.DB_BUFFER, c.DB_PATH.c_str());
   Db db_(NULL, 0);
-  db = dbw_open(&db_, c.DB_PATH.c_str());
-  cout << "Database connected" << endl;
+  if (! dbw_open(&db_, c.DB_PATH.c_str())) {
+    cout << "DB not opened. Exit program." << endl;
+    return 1;
+  }
+  
 
   size_t founds;
   boost::progress_timer t; // start timing

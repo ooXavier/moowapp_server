@@ -15,7 +15,7 @@
 
 using namespace std;
 
-Db *dbw_open(Db *db_, const char *basedir)
+int dbw_open(Db *db_, const char *basedir)
 {
   try {
     // Redirect debugging information to std::cerr
@@ -31,12 +31,14 @@ Db *dbw_open(Db *db_, const char *basedir)
   catch(DbException &e) {
     cerr << "Error opening database: " << basedir << "\n";
     cerr << e.what() << endl;
+    return false;
   } catch(exception &e) {
     cerr << "Error opening database: " << basedir << "\n";
     cerr << e.what() << endl;
+    return false;
   }
   
-  return db_;
+  return true;
 }
 
 string dbw_get(Db *db, string strKey)

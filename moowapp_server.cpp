@@ -1262,16 +1262,18 @@ int main(int argc, char* argv[]) {
   
   //-- Look for arguments
   if (argc <= 1 || argc > 2) {
-      cout << "Usage: " << argv[0] << " <Line number => 0 for first line>" << endl;
+      cout << "Usage: " << argv[0] << " <Pos in file => 0 for beginning>" << endl;
       exit(1);
   }
 
   unsigned long readPos = atol(argv[1]);
   
   //-- Open the database
-  //db = dbw_open(c.DB_BUFFER, c.DB_PATH.c_str());
   Db db_(NULL, 0);
-  db = dbw_open(&db_, c.DB_PATH.c_str());
+  if (! dbw_open(&db_, c.DB_PATH.c_str())) {
+    cout << "DB not opened. Exit program." << endl;
+    return 1;
+  }
   
   //-- DB Compact task set-up
   boost::thread cThread;
