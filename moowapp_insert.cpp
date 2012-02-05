@@ -20,20 +20,19 @@
 #include "log_reader.h"
 
 using namespace std;
-Db *db;
+Db *db = NULL;
 
 int main() {
   // Read configuration file
   Config c;
   
   // open the database
-  //db = dbw_open(c.DB_BUFFER, c.DB_PATH.c_str());
   Db db_(NULL, 0);
-  if (! dbw_open(&db_, c.DB_PATH.c_str())) {
+  db = dbw_open(&db_, c.DB_PATH.c_str());
+  if (db == NULL) {
     cout << "DB not opened. Exit program." << endl;
     return 1;
   }
-  
 
   size_t founds;
   boost::progress_timer t; // start timing

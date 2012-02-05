@@ -32,7 +32,7 @@
 #include "mongoose.h"
 
 using namespace std;
-Db *db;
+Db *db = NULL;
 Config c; //-- Read configuration file
 boost::mutex mutex; // Mutex for thread blocking
 
@@ -1270,7 +1270,8 @@ int main(int argc, char* argv[]) {
   
   //-- Open the database
   Db db_(NULL, 0);
-  if (! dbw_open(&db_, c.DB_PATH.c_str())) {
+  db = dbw_open(&db_, c.DB_PATH.c_str());
+  if (db == NULL) {
     cout << "DB not opened. Exit program." << endl;
     return 1;
   }
