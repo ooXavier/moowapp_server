@@ -56,8 +56,9 @@ int main() {
       fileName = itr->path().filename().string();
       founds = fileName.find(c.FILTER_SSL);
       if (founds!=string::npos) {
-        cout << fileName << endl;
+        cout << fileName;
         readLogFile(c, itr->path().string(), setModules);
+        cout << endl;
       }
     }
   }

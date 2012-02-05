@@ -1228,7 +1228,7 @@ void readLogThread(const Config c, unsigned long readPos) {
       now = time(0);
       timeinfo = localtime(&now);
       strftime (buffer,80,"%c",timeinfo);
-      cout << buffer << " - READ LOG (" << c.LOG_FILE_PATH << "): starting at " << readPos << flush;
+      cout << buffer << " - READ LOG (" << c.LOG_FILE_PATH << "): starting at byte n°" << readPos << flush;
       
       //-- Reconstruct list of modules
       set<string> setModules;
@@ -1236,7 +1236,7 @@ void readLogThread(const Config c, unsigned long readPos) {
       getDBModules(setModules);
     
       readPos = readLogFile(c, c.LOG_FILE_PATH, setModules, readPos);
-      cout << "until " << readPos << "." << endl;
+      cout << " Until byte n°" << readPos << "." << endl;
     
       // Update list of modules in DB
       string modules = "";
