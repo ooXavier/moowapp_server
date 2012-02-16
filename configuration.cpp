@@ -68,5 +68,11 @@ Config::Config(string cfgFile) {
   COMPRESSION = (mapConf.find("COMPRESSION") != mapConf.end()) ? (mapConf["COMPRESSION"] == "on") ? true : false : false;
   LISTENING_PORT = (mapConf.find("LISTENING_PORT") != mapConf.end()) ? mapConf["LISTENING_PORT"] : "9999";
   LOG_FILE_PATH = (mapConf.find("LOG_FILE_PATH") != mapConf.end()) ? mapConf["LOG_FILE_PATH"] : "myFile.txt";
+  
+  int val = 10;
+  if (mapConf.find("LOGS_READ_INTERVAL") != mapConf.end()) {
+    sscanf(mapConf["LOGS_READ_INTERVAL"].c_str(), "%d", &val);
+  }
+  LOGS_READ_INTERVAL = val;
 }
 

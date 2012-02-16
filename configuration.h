@@ -26,7 +26,7 @@ public:
   std::string FILTER_URL2; // Second string to search in access_log files
   
   bool COMPRESSION;
-  static const int LOGS_READ_INTERVAL = 10; // in seconds
+  int LOGS_READ_INTERVAL; // in seconds
   static const int LOGS_COMPRESSION_INTERVAL = 5; // in minutes
   static const int DAYS_FOR_DETAILS = 7; // Days of non compressed stats stored
   std::string LISTENING_PORT; // Server listening port
