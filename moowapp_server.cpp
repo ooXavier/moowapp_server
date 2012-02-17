@@ -11,6 +11,7 @@
 #include <sstream>
 #include <set>
 #include <vector> // Line log analyse
+#include <signal.h> // Handler for Ctrl+C
 
 // Boost
 #include <boost/progress.hpp> // Timing system
@@ -35,6 +36,8 @@ using namespace std;
 Db *db = NULL;
 Config c; //-- Read configuration file
 boost::mutex mutex; // Mutex for thread blocking
+struct mg_context *ctx;
+boost::thread cThread, rThread;
 
 /*!
  * \fn int getDBModules(set<string> &setModules)
@@ -1199,8 +1202,8 @@ void compressionThread(const Config c) {
       boost::this_thread::sleep(boost::posix_time::minutes(10));
     }
   
-  } catch(boost::interprocess::interprocess_exception &ex) {
-    cerr << ex.what() << std::endl;
+  } catch(boost::thread_interrupted &ex) {
+    cout << "compressionThread - Stopped." << endl;
   }
   return;
 }
@@ -1248,10 +1251,34 @@ void readLogThread(const Config c, unsigned long readPos) {
       
       // Here is released the scoped mutex automatically
     }
-  } catch(boost::interprocess::interprocess_exception &ex) {
-    cerr << ex.what() << std::endl;
+  } catch(boost::thread_interrupted &ex) {
+    cout << "done" << endl;
   }
-  boost::interprocess::named_mutex::remove("fstream_named_mutex");
+}
+
+/*!
+ * \fn void handler_function(int signum)
+ * \brief Handler to close properly db an threads.
+  *
+ * \param signum Signal to catch
+ */
+void handler_function(int signum) {  
+  // Stop server
+  cout << "Stoping server... " << flush;
+  mg_stop(ctx);
+  
+  cout << "done" << endl << "Stoping Compression Thread... " << flush;
+  cThread.interrupt();
+  cThread.join();
+  cout << "done" << endl << "Stoping LOG Thread... " << flush;
+  rThread.interrupt();
+  rThread.join();
+  
+  cout << "Closing DB... " << flush;
+  //-- DB Release
+  dbw_close(db);
+  
+  exit(0);
 }
 
 int main(int argc, char* argv[]) {
@@ -1265,7 +1292,7 @@ int main(int argc, char* argv[]) {
       cout << "Usage: " << argv[0] << " <Pos in file => 0 for beginning>" << endl;
       exit(1);
   }
-
+  
   unsigned long readPos = atol(argv[1]);
   
   //-- Open the database
@@ -1276,8 +1303,10 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   
+  // Attach handler for SIGINT
+  signal(SIGINT, handler_function);
+  
   //-- DB Compact task set-up
-  boost::thread cThread;
   if (c.COMPRESSION) {
     cout << "DB task start..." << endl;
     cThread = boost::thread(&compressionThread, c);
@@ -1285,20 +1314,17 @@ int main(int argc, char* argv[]) {
 
   //-- Start reading file
   cout << "Read file task start..." << endl;
-  boost::thread rThread(&readLogThread, c, readPos);
+  rThread = boost::thread(&readLogThread, c, readPos);
   
   //-- Json web server set-up
-  struct mg_context *ctx;
   const char *soptions[] = {"listening_ports", c.LISTENING_PORT.c_str(), NULL};
   cout << "Server now listening on " << c.LISTENING_PORT << endl;
   ctx = mg_start(&callback, NULL, soptions);
   getchar();  // Wait until user hits "enter" or any car
   mg_stop(ctx);
-  cThread.interrupt();
-  rThread.interrupt();
   
-  //-- DB Release
-  dbw_close(db);
+  // Stop properly
+  handler_function(1);
   
   return 0;
 }
