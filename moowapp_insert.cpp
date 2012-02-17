@@ -22,7 +22,7 @@
 using namespace std;
 Db *db = NULL;
 
-int main() {
+int main(int argc, char* argv[]) {
   // Read configuration file
   Config c;
   
@@ -54,10 +54,19 @@ int main() {
     for (boost::filesystem::directory_iterator itr(dir_path) ; itr != end_itr ; ++itr ) {
       if (is_directory(itr->status())) continue;
       
-      // For each log file matching name parse lines
       fileName = itr->path().filename().string();
+      bool ok = true;
+      // Remove filenames from arguments from files to be analyzed
+      for(int i=1; i < argc; i++) {
+        if(strcmp(fileName.c_str(), argv[i]) == 0) {
+          ok = false;
+          break;
+        }
+      }
+      
+      // For each log file matching name parse lines
       founds = fileName.find(c.FILTER_SSL);
-      if (founds!=string::npos) {
+      if (ok && founds!=string::npos) {
         cout << fileName;
         readLogFile(c, itr->path().string(), setModules);
         cout << endl;
