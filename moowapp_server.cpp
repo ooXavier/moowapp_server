@@ -55,7 +55,7 @@ int getDBModules(set<string> &setModules) {
   boost::split(setModules, strModules, boost::is_any_of("/"));
   setModules.erase(""); // Delete empty module
   
-  if (c.DEBUG_APP_OTHERS || c.DEBUG_LOGS) cout << "Known modules (" << setModules.size() << ") :" << strModules << endl;
+  if (c.DEBUG_APP_OTHERS || c.DEBUG_LOGS) cout << endl << "Known modules (" << setModules.size() << ") :" << strModules << endl;
   return 0;
 }
 
@@ -394,34 +394,28 @@ static void stats_app_day(struct mg_connection *conn,
   strftime(strDate, 31, "%A %d %B", timeinfo);
   mg_printf(conn, "\"%d\":\"day\",\"%d\":\"%s\"},", i, i+1, strDate);
   
-  //-- Get the day from the first date received
-  oss << "d_0";
-  get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
-  assert(strDate[0] != '\0');
-  oss.str("");
-  boost::gregorian::date d;
-  // Convert timestamp to Y-m-d
-  boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
-  d = pt.date();
+  // Convert timestamp to Y-m-d  
+  strftime(strDate, 31, "%Y-%m-%d", timeinfo);
   
   //-- Build visits stats in response for each modules or app.
   vector< pair<string, map<int, int> > > vRes;
   sscanf(strModules, "%d", &nbApps);
+  if (c.DEBUG_REQUESTS) cout << "stats_app_day - with " << nbApps << flush;
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
     if (mode == "all") {
       oss << "p_" << i;
       get_qsvar(ri, oss.str().c_str(), strApplication, sizeof(strApplication));
       oss.str("");
-      if (strModule[0] == '\0') continue;
-      if (c.DEBUG_REQUESTS) cout << "stats_app_day - app=" << strApplication;
+      if (strApplication[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS && i==0) cout << " apps." << endl;
 
       // Get nb module of that app in request
       oss << "m_" << i;
       get_qsvar(ri, oss.str().c_str(), strModules, sizeof(strModules));
       oss.str("");
       if (strModules[0] == '\0') continue;
-      if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app [" << flush;
+      if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app " << strApplication << " [" << flush;
 
       // Loop to put modules from request in a set
       setModules.clear();
@@ -445,7 +439,7 @@ static void stats_app_day(struct mg_connection *conn,
         //-- Get nb visit from DB
         for(int l=0, max=DB_TIMES_SIZE;l<max;l++) {
           // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-          oss << *it << '/' << strType << "/" << boost::gregorian::to_iso_extended_string(d) << '/' << dbTimes[l];
+          oss << *it << '/' << strType << "/" << strDate << '/' << dbTimes[l];
           // Search Key (oss) in DB
           visit = dbw_get(db, oss.str());
           iVisit = 0;
@@ -475,17 +469,19 @@ static void stats_app_day(struct mg_connection *conn,
       vRes.push_back(make_pair(strApplication, mapResMod));
     }
     else {
+      if (c.DEBUG_REQUESTS && i==0) cout << " modules in app." << endl;
       oss << "m_" << i;
       get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
       oss.str("");
       if (strModule[0] == '\0') continue;
-      if (c.DEBUG_REQUESTS) cout << "stats_app_day - module=" << strModule;
+      if (c.DEBUG_REQUESTS) cout << " - module=" << strModule;
     
       //-- Get nb visit from DB
       k = hourVisit = 0;
       for(int l=0, max=DB_TIMES_SIZE;l<max;l++) {
         // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-        oss << strModule << '/' << strType << "/" << boost::gregorian::to_iso_extended_string(d) << '/' << dbTimes[l];
+        oss << strModule << '/' << strType << "/" << strDate << '/' << dbTimes[l];
+        ////if (c.DEBUG_REQUESTS && l==0) cout << " visits for " << oss.str() << endl;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         iVisit = 0;
@@ -499,7 +495,7 @@ static void stats_app_day(struct mg_connection *conn,
           hourVisit += iVisit;
           ////cout << "hourVisit=" << hourVisit << endl;
         } else {
-          ////if (c.DEBUG_REQUESTS) cout << " visits for " << oss.str() << " k=" << k << " hourVisit=" << hourVisit << endl;
+          ////if (c.DEBUG_REQUESTS) cout << " /" << dbTimes[l] << " k=" << k << " hourVisit=" << hourVisit << endl;
           // Return nb visit
           mapResMod.insert(pair<int, int>(k, hourVisit));
           hourVisit = iVisit;
@@ -508,6 +504,7 @@ static void stats_app_day(struct mg_connection *conn,
         oss.str("");
       } 
       ////if (c.DEBUG_REQUESTS) cout << "LAST k=" << k << " hourVisit=" << hourVisit << endl;
+      if (c.DEBUG_REQUESTS) cout << endl;
       // Return last nb visit
       mapResMod.insert(pair<int, int>(23, hourVisit));
       
@@ -528,7 +525,7 @@ static void stats_app_day(struct mg_connection *conn,
       for(it=setOtherModules.begin(), nbVisitForApp = 0; it!=setOtherModules.end(); it++) {
         if (c.DEBUG_APP_OTHERS && l == 0) cout << *it << ", ";
         // Build Key ex: "creer_modifier_retrocession/1/2011-04-24/150";
-        oss << *it << '/' << strType << "/" << boost::gregorian::to_iso_extended_string(d) << '/' << timeVal;
+        oss << *it << '/' << strType << "/" << strDate << '/' << timeVal;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         iVisit = 0;
@@ -1125,13 +1122,14 @@ void compressionThread(const Config c) {
   //boost::posix_time::ptime t = boost::posix_time::second_clock::universal_time() + boost::posix_time::minutes(LOGS_COMPRESSION_INTERVAL);
   /// FOR REAL usage USE a specific date/time : the next day at 3 o'clock
   boost::gregorian::date_duration dd(1);
-  boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() + dd, boost::posix_time::time_duration(3,0,0));
+  boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() /*+ dd*/, boost::posix_time::time_duration(3,0,0));
   
   try {
     while(true)
     {
-      boost::gregorian::date dateToHold(boost::gregorian::day_clock::universal_day() - dd_week);
-      boost::posix_time::ptime timeNow (boost::posix_time::second_clock::universal_time());
+      boost::gregorian::date today(boost::gregorian::day_clock::universal_day());
+      boost::gregorian::date dateToHold(today - dd_week);
+      boost::posix_time::ptime timeNow(boost::posix_time::second_clock::universal_time());
       //cout << "Obj:" << boost::posix_time::to_simple_string(t) << " & now:" << boost::posix_time::to_simple_string(timeNow) << endl;
       if (timeNow >= t) {
         /// FOR DEBUG
@@ -1150,9 +1148,14 @@ void compressionThread(const Config c) {
         //-- Reloop thru all days to j-x in order to remove details and store days only
         // Loop thru day since last parsing
         boost::gregorian::day_iterator ditr(last);
-        for (;ditr <= dateToHold; ++ditr) {
+        for (;ditr <= today; ++ditr) {
           //produces "C: 2011-Nov-04", "C: 2011-Nov-05", ...
-          cout << "C: " << to_simple_string(*ditr) << endl;
+          cout << "C: " << to_simple_string(*ditr) << flush;
+          if (ditr <= dateToHold) {
+            cout << " R." << endl;
+          } else {
+            cout << endl;
+          }
           monthNumber = ditr->month();
         
           // Loop thru modules
@@ -1170,15 +1173,17 @@ void compressionThread(const Config c) {
                 visit = dbw_get(db, strOss+'/'+dbTimes[i]);
                 //if(c.DEBUG_LOGS) cout << "C Searched: " << strOss << '/' << dbTimes[i] << endl;
                 if (visit.length() > 0) {
+                  if (ditr <= dateToHold) {
+                    // Delete the current Key in DB
+                    dbw_remove(db, strOss+'/'+dbTimes[i]);
+                  }
                   // Return nb visit
                   dayVisit += boost::lexical_cast<int>(visit);
                   if(c.DEBUG_LOGS && lineType == 1) cout << "C Found: " << strOss << '/' << dbTimes[i] << " = " << dayVisit << endl;
-                  // Delete the current Key in DB
-                  dbw_remove(db, strOss+'/'+dbTimes[i]);
                 }
               }
           
-              if (dayVisit > 0) {
+              if ((ditr <= dateToHold) && (dayVisit > 0)) {
                 // Add this day Key in DB
                 if (dbw_add(db, strOss, boost::lexical_cast<string>(dayVisit))) {
                   if(c.DEBUG_LOGS && lineType == 1) cout << "C Added: " << strOss << " = " << dayVisit << endl;
@@ -1220,10 +1225,15 @@ void readLogThread(const Config c, unsigned long readPos) {
   struct tm * timeinfo;
   time_t now;
   char buffer[80];
+  ostringstream oss;
+  int wait_time = 5; // wait time of 5 seconds if first read from log file
   
   try {
     while(true) {
-      boost::this_thread::sleep(boost::posix_time::seconds(c.LOGS_READ_INTERVAL)); // interruptible
+      if (readPos != 0)
+        wait_time = c.LOGS_READ_INTERVAL;
+      
+      boost::this_thread::sleep(boost::posix_time::seconds(wait_time)); // interruptible
       
       // Write to file atomically
       boost::mutex::scoped_lock lock(mutex);
@@ -1231,15 +1241,18 @@ void readLogThread(const Config c, unsigned long readPos) {
       now = time(0);
       timeinfo = localtime(&now);
       strftime (buffer,80,"%c",timeinfo);
-      cout << buffer << " - READ LOG (" << c.LOG_FILE_PATH << "): starting at byte n°" << readPos << flush;
+      ///time_t midnight = now / 86400 * 86400; // seconds
+      oss << c.LOG_FILE_PATH;// << midnight;
+      cout << '\r' << setfill(' ') << setw(150) << '\r' << buffer << " - READ LOG (" << oss.str() << "): starting at " << readPos << flush;
       
       //-- Reconstruct list of modules
       set<string> setModules;
       set<string>::iterator it;
       getDBModules(setModules);
     
-      readPos = readLogFile(c, c.LOG_FILE_PATH, setModules, readPos);
-      cout << " Until byte n°" << readPos << "." << endl;
+      readPos = readLogFile(c, oss.str(), setModules, readPos);
+      cout << " until " << readPos << "." << flush;
+      oss.str("");
     
       // Update list of modules in DB
       string modules = "";
@@ -1321,7 +1334,6 @@ int main(int argc, char* argv[]) {
   cout << "Server now listening on " << c.LISTENING_PORT << endl;
   ctx = mg_start(&callback, NULL, soptions);
   getchar();  // Wait until user hits "enter" or any car
-  mg_stop(ctx);
   
   // Stop properly
   handler_function(1);

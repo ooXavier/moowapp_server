@@ -172,7 +172,7 @@ unsigned long readLogFile(Config c, const string strFile, set<string> &setModule
   lSize = ftell (pFile);
   if (lSize == readPos) {
     fclose (pFile);
-    cout << ". Already at end of file.";
+    cout << ". Already at end of file." << flush;
     return lSize;
   }
   lSize -= readPos;
