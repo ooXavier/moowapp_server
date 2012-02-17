@@ -31,11 +31,9 @@ Db * dbw_open(Db *db_, const char *basedir)
   catch(DbException &e) {
     cerr << "Error opening database: " << basedir << "\n";
     cerr << e.what() << endl;
-    //return false;
   } catch(exception &e) {
     cerr << "Error opening database: " << basedir << "\n";
     cerr << e.what() << endl;
-    //return false;
   }
   
   return db_;
@@ -114,14 +112,18 @@ void dbw_flush(Db *db)
 
 void dbw_close(Db *db)
 {
-  // Close the db
   try {
-    db->close(0);
-    cout << "DB connection closed" << endl;
+    if (db != NULL) {
+      // Close the db
+      db->close(0);
+      cout << "DB connection closed" << endl;
+    }
   } catch(DbException &e) {
-    cerr << "Error closing database: " << e.what() << endl;
-  } catch(std::exception &e) {
-    cerr << "Error closing database: " << e.what() << endl;
+    cerr << "Error closing database." << endl;
+    cerr << e.what() << endl;
+  } catch(exception &e) {
+    cerr << "Error closing database." << endl;
+    cerr << e.what() << endl;
   }
 }
 
