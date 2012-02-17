@@ -88,7 +88,11 @@ int dbw_add(Db *db, string strKey, string strValue)
 void dbw_remove(Db *db, string strKey)
 {
   Dbt key(&strKey, strKey.size());
-  db->del(NULL, &key, 0);
+  if (db->del(NULL, &key, 0))
+    return;
+
+  cerr << "DB Error on db->del(key=" << strKey << ")." << endl;
+  return;
 }
 
 void dbw_flush(Db *db)
