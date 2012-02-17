@@ -1113,7 +1113,7 @@ void compressionThread(const Config c) {
   
   // At the first start do a compression from the first day of the year
   boost::gregorian::date now(boost::gregorian::day_clock::universal_day());
-  boost::gregorian::date last(now.year()-1, boost::gregorian::Jan, 1);
+  boost::gregorian::date last(now.year(), boost::gregorian::Jan, 1);
   
   // Hold the delay for non compressed stats
   boost::gregorian::date_duration dd_week(c.DAYS_FOR_DETAILS);
@@ -1122,7 +1122,7 @@ void compressionThread(const Config c) {
   //boost::posix_time::ptime t = boost::posix_time::second_clock::universal_time() + boost::posix_time::minutes(LOGS_COMPRESSION_INTERVAL);
   /// FOR REAL usage USE a specific date/time : the next day at 3 o'clock
   boost::gregorian::date_duration dd(1);
-  boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() /*+ dd*/, boost::posix_time::time_duration(3,0,0));
+  boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() + dd, boost::posix_time::time_duration(3,0,0));
   
   try {
     while(true)
@@ -1157,6 +1157,9 @@ void compressionThread(const Config c) {
             cout << endl;
           }
           monthNumber = ditr->month();
+          
+          // Check to see if this thread has been interrupted before going into each days of the curent month
+          boost::this_thread::interruption_point();
         
           // Loop thru modules
           for(it=setModules.begin(); it!=setModules.end(); it++) {
@@ -1183,7 +1186,7 @@ void compressionThread(const Config c) {
                 }
               }
           
-              if ((ditr <= dateToHold) && (dayVisit > 0)) {
+              if (dayVisit > 0) {
                 // Add this day Key in DB
                 if (dbw_add(db, strOss, boost::lexical_cast<string>(dayVisit))) {
                   if(c.DEBUG_LOGS && lineType == 1) cout << "C Added: " << strOss << " = " << dayVisit << endl;
@@ -1208,6 +1211,9 @@ void compressionThread(const Config c) {
     }
   
   } catch(boost::thread_interrupted &ex) {
+    // Dump DB
+    dbw_flush(db);
+      
     cout << "compressionThread - Stopped." << endl;
   }
   return;
