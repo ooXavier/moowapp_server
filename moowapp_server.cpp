@@ -208,11 +208,12 @@ static void stats_app_intra(struct mg_connection *conn,
                             const struct mg_request_info *ri)
 {
   bool is_jsonp;
-  int i, max, nbModules, offset;
+  int i, j, max, nbApps, nbModules, offset;
   char strDates[11];   // Number of dates. Ex: 60
   char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
   char strOffset[11];  // Date offset. Ex: 60
   char strModules[11]; // Number of modules. Ex: 4
+  char strApplication[65];  // Application name. Ex: Calendar
   char strModule[65];  // Modules name. Ex: gerer_connaissance
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
@@ -223,7 +224,10 @@ static void stats_app_intra(struct mg_connection *conn,
   time_t tStamp;
   struct tm * timeinfo;
   map<int, string> mapDate;
-  map<int, string>::iterator it;
+  map<int, string>::iterator itm;
+  set<string> setModules, setOtherModules;
+  set<string>::iterator its;
+  unsigned int nbVisitForApp;
   
   //-- Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
@@ -250,55 +254,115 @@ static void stats_app_intra(struct mg_connection *conn,
   
   //-- Set each date to according offset in response.
   max += offset;
-  for(i = offset; i < max; i++) {
-    oss << "d_" << i;
+  int ii = 0, iii = 0;
+  for(i = offset; i < max; i++, ii++) {
+    if (ii!=0 && ii%6 == 0) { ii = 0; iii+=10; }
+    oss << "d_" << (offset + ii + iii);
     get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
     oss.str("");
     if (strDate[0] != '\0') {
-      mg_printf(conn, "\"%d\":\"%s\",", i, strDate);
+      //cout << "ici: i=" << i << " ii=" << ii << " iii=" << iii << " => " << (offset + ii + iii) << " strDate=" << strDate << endl;
+      mg_printf(conn, "\"%d\":\"%s\",", (offset + ii + iii), strDate);
       
       // Convert timestamp to Y-m-d
       ss.str(strDate);
       ss >> tStamp; //Ex: 1303639200;
       timeinfo = localtime(&tStamp);
       strftime(strDate, 31, "%Y-%m-%d", timeinfo);
-      mapDate.insert( pair<int,string>(i, strDate) );
+      mapDate.insert( pair<int,string>((offset + ii + iii), strDate) );
     }
   }
   
   //-- Set Mode and Date in response.
   // Extract "Day NDay Month" from timestamp
   strftime(strDate, 31, "%A %d %B", timeinfo);
+  // Put mode and label after the last date
+  i = offset + ii + iii;
   mg_printf(conn, "\"%d\":\"intra\",\"%d\":\"%s\"},", i, i+1, strDate);
   
   //-- Build visits stats in response for each modules.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules, "%d", &nbModules);
-  for(i = 0; i < nbModules; i++) {
+  sscanf(strModules, "%d", &nbApps);
+  if (c.DEBUG_REQUESTS) cout << "stats_app_intra - with " << nbApps << flush;
+  for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
-    oss << "m_" << i;
-    get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
-    oss.str("");
-    if (strModule[0] == '\0') continue;
-    if (c.DEBUG_REQUESTS) cout << "stats_app_intra - module=" << strModule << endl;
-      
-    //-- and each dates.
-    for(it=mapDate.begin(); it!=mapDate.end(); it++) {
-      //-- Get nb visit from DB
-      // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-      oss << strModule << '/' << strType << "/" << (*it).second << '/' << (*it).first;
-      // Search Key (oss) in DB
-      visit = dbw_get(db, oss.str());
+    if (mode == "all") {
+      oss << "p_" << i;
+      get_qsvar(ri, oss.str().c_str(), strApplication, sizeof(strApplication));
       oss.str("");
-      int iVisit = 0;
-      if (visit.length() > 0) {
-        // Update nb visit of the app for this day
-        sscanf(visit.c_str(), "%d", &iVisit);
+      if (strApplication[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS && i==0) cout << " apps." << endl;
+
+      // Get nb module of that app in request
+      oss << "m_" << i;
+      get_qsvar(ri, oss.str().c_str(), strModules, sizeof(strModules));
+      oss.str("");
+      if (strModules[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app " << strApplication << " [" << flush;
+
+      // Loop to put modules from request in a set
+      setModules.clear();
+      
+      sscanf(strModules, "%d", &nbModules);
+      for(j = 0; j < nbModules; j++) {
+        oss << "m_" << i << "_" << j;
+        get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+        oss.str("");
+        if (strModule[0] == '\0') continue;
+        if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
+        setModules.insert(strModule);
+
+        // Remove this module from the whole app list
+        setOtherModules.erase(strModule);
       }
-      // Return nb visit
-      mapResMod.insert(pair<int, int>((*it).first, iVisit));
+      if (c.DEBUG_REQUESTS) cout << "]" << endl;
+      
+      //-- and each module in an app
+      for(its=setModules.begin(); its!=setModules.end(); its++) {
+        //-- Get nb visit from DB
+        for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
+          // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
+          oss << *its << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;;
+          // Search Key (oss) in DB
+          visit = dbw_get(db, oss.str());
+          oss.str("");
+          int iVisit = 0;
+          if (visit.length() > 0) {
+            // Update nb visit of the app for this day
+            sscanf(visit.c_str(), "%d", &iVisit);
+          }
+          // Return last nb visit
+          mapResMod.insert(pair<int, int>((*itm).first, iVisit));
+        }    
+      }
+    
+      vRes.push_back(make_pair(strApplication, mapResMod));
+    } else {
+      if (c.DEBUG_REQUESTS && i==0) cout << " modules in app." << endl;
+      oss << "m_" << i;
+      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      oss.str("");
+      if (strModule[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS) cout << " - module=" << strModule << endl;
+      
+      //-- and each dates.
+      for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
+        //-- Get nb visit from DB
+        // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
+        oss << strModule << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;
+        // Search Key (oss) in DB
+        visit = dbw_get(db, oss.str());
+        oss.str("");
+        int iVisit = 0;
+        if (visit.length() > 0) {
+          // Update nb visit of the app for this day
+          sscanf(visit.c_str(), "%d", &iVisit);
+        }
+        // Return nb visit
+        mapResMod.insert(pair<int, int>((*itm).first, iVisit));
+      }
+      vRes.push_back(make_pair(strModule, mapResMod));
     }
-    vRes.push_back(make_pair(strModule, mapResMod));
   }
   
   //-- Add a SUM row serie
