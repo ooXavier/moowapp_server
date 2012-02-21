@@ -209,6 +209,7 @@ static void stats_app_intra(struct mg_connection *conn,
 {
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, offset;
+  unsigned int iVisit, minVisit;
   char strDates[11];   // Number of dates. Ex: 60
   char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
   char strOffset[11];  // Date offset. Ex: 60
@@ -318,26 +319,29 @@ static void stats_app_intra(struct mg_connection *conn,
       if (c.DEBUG_REQUESTS) cout << "]" << endl;
       
       //-- and each module in an app
-      for(its=setModules.begin(); its!=setModules.end(); its++) {
+      for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
         //-- Get nb visit from DB
-        for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
+        for(its=setModules.begin(), minVisit=0; its!=setModules.end(); its++) {
           // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-          oss << *its << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;;
+          oss << *its << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;
           // Search Key (oss) in DB
           visit = dbw_get(db, oss.str());
-          oss.str("");
-          int iVisit = 0;
+          iVisit = 0;
           if (visit.length() > 0) {
             // Update nb visit of the app for this day
             sscanf(visit.c_str(), "%d", &iVisit);
+            minVisit += iVisit;
           }
           // Return last nb visit
-          mapResMod.insert(pair<int, int>((*itm).first, iVisit));
-        }    
+          //if (c.DEBUG_REQUESTS && strcmp("xxx", strApplication)==0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit << endl; 
+          oss.str("");
+        }  
+        mapResMod.insert(pair<int, int>((*itm).first, minVisit));
       }
     
       vRes.push_back(make_pair(strApplication, mapResMod));
-    } else {
+    }
+    else {
       if (c.DEBUG_REQUESTS && i==0) cout << " modules in app." << endl;
       oss << "m_" << i;
       get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
