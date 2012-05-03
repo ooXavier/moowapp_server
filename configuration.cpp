@@ -67,6 +67,7 @@ Config::Config(string cfgFile) {
   
   COMPRESSION = (mapConf.find("COMPRESSION") != mapConf.end()) ? (mapConf["COMPRESSION"] == "on") ? true : false : false;
   LISTENING_PORT = (mapConf.find("LISTENING_PORT") != mapConf.end()) ? mapConf["LISTENING_PORT"] : "9999";
+  LOG_FILE_FORMAT = (mapConf.find("LOG_FILE_FORMAT") != mapConf.end()) ? mapConf["LOG_FILE_FORMAT"] : "timestamp";
   LOG_FILE_PATH = (mapConf.find("LOG_FILE_PATH") != mapConf.end()) ? mapConf["LOG_FILE_PATH"] : "myFile.txt";
   
   int val = 10;

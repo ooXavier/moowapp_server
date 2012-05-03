@@ -30,6 +30,7 @@ public:
   static const int LOGS_COMPRESSION_INTERVAL = 5; // in minutes
   static const int DAYS_FOR_DETAILS = 7; // Days of non compressed stats stored
   std::string LISTENING_PORT; // Server listening port
+  std::string LOG_FILE_FORMAT; // Format of the log file
   std::string LOG_FILE_PATH;
 
   /*!
