@@ -46,5 +46,6 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 ## Changelogs
 ### V0.1
 - First alpha version running on BerkeleyDB and Mongoose
+
 ### V0.2
 - Version currently running for 6 months now on a server AIX 5.3 TL12
