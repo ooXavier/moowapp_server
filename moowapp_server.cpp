@@ -2,13 +2,14 @@
  * \file moowapp_server.cpp
  * \brief Web Statistics DB Server aka : mooWApp
  * \author Xavier ETCHEBER
- * \version 0.1
+ * \version 0.2
  */
 
 #include <iostream>
 #include <string>
 #include <cassert>
-#include <sstream>
+#include <sstream> // stringstrezm
+#include <fstream> // ifstream, ofstream
 #include <set>
 #include <vector> // Line log analyse
 #include <signal.h> // Handler for Ctrl+C
@@ -228,7 +229,6 @@ static void stats_app_intra(struct mg_connection *conn,
   map<int, string>::iterator itm;
   set<string> setModules, setOtherModules;
   set<string>::iterator its;
-  unsigned int nbVisitForApp;
   
   //-- Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
@@ -241,6 +241,7 @@ static void stats_app_intra(struct mg_connection *conn,
   mode = string(strMode);
   if (mode == "all") {
     get_qsvar(ri, "apps", strModules, sizeof(strModules));
+    getDBModules(setOtherModules);
   } else {
     get_qsvar(ri, "modules", strModules, sizeof(strModules));
   }
@@ -367,6 +368,36 @@ static void stats_app_intra(struct mg_connection *conn,
       }
       vRes.push_back(make_pair(strModule, mapResMod));
     }
+  }
+  
+  //-- In all mode, add an "Others" application
+  if (mode == "all" && setOtherModules.size() > 0) {
+    map<int, int> mapResMod;
+    if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
+    
+    //-- Get nb visit from DB
+    for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
+      //-- Get nb visit from DB
+      for(its=setOtherModules.begin(), minVisit=0; its!=setOtherModules.end(); its++) {
+        if (c.DEBUG_APP_OTHERS && itm == mapDate.begin()) cout << *its << ", ";
+        // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
+        oss << *its << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;
+        // Search Key (oss) in DB
+        visit = dbw_get(db, oss.str());
+        iVisit = 0;
+        if (visit.length() > 0) {
+          // Update nb visit of the app for this day
+          sscanf(visit.c_str(), "%d", &iVisit);
+          minVisit += iVisit;
+        }
+        // Return last nb visit
+        //if (c.DEBUG_REQUESTS && strcmp("xxx", strApplication)==0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit << endl; 
+        oss.str("");
+      }
+      if (c.DEBUG_APP_OTHERS && itm == mapDate.begin()) cout << endl;
+      mapResMod.insert(pair<int, int>((*itm).first, minVisit));
+    }
+    vRes.push_back(make_pair("Others", mapResMod));
   }
   
   //-- Add a SUM row serie
@@ -503,9 +534,10 @@ static void stats_app_day(struct mg_connection *conn,
       if (c.DEBUG_REQUESTS) cout << "]" << endl;
 
       //-- and each module in an app
-      for(it=setModules.begin(), hourVisit = k = 0; it!=setModules.end(); it++) {
+      hourVisit = 0;
+      for(int l=k=0, max=DB_TIMES_SIZE;l<max;l++) {
         //-- Get nb visit from DB
-        for(int l=0, max=DB_TIMES_SIZE;l<max;l++) {
+        for(it=setModules.begin(); it!=setModules.end(); it++) {
           // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
           oss << *it << '/' << strType << "/" << strDate << '/' << dbTimes[l];
           // Search Key (oss) in DB
@@ -520,8 +552,7 @@ static void stats_app_day(struct mg_connection *conn,
           if (floor(timeVal/10) == k) {
             hourVisit += iVisit;
           } else {
-            ////if (*it == "bureau") 
-            ////if (c.DEBUG_REQUESTS) cout << " visits for " << oss.str() << " k=" << k << " hourVisit=" << hourVisit << " dbTimes[i]=" << dbTimes[l] << endl;
+            if (c.DEBUG_REQUESTS) cout << " visits for " << oss.str() << " k=" << k << " hourVisit=" << hourVisit << " dbTimes[i]=" << dbTimes[l] << endl;
             // Return nb visit
             mapResMod.insert(pair<int, int>(k, hourVisit));
             hourVisit = iVisit;
@@ -529,10 +560,10 @@ static void stats_app_day(struct mg_connection *conn,
           }
           oss.str("");
         }
-        ////if (*it == "bureau") cout << "LAST k=" << k << " hourVisit=" << hourVisit << endl;
-        // Return last nb visit
-        mapResMod.insert(pair<int, int>(23, hourVisit));
       }
+      //cout << "LAST k=" << k << " hourVisit=" << hourVisit << endl;
+      // Return last nb visit
+      mapResMod.insert(pair<int, int>(23, hourVisit));
     
       vRes.push_back(make_pair(strApplication, mapResMod));
     }
@@ -1178,10 +1209,13 @@ void compressionThread(const Config c) {
   string strOss;
   set<string> setModules;
   set<string>::iterator it;
+  struct tm * timeinfo;
+  time_t now;
+  char buffer[80];
   
   // At the first start do a compression from the first day of the year
-  boost::gregorian::date now(boost::gregorian::day_clock::universal_day());
-  boost::gregorian::date last(now.year(), boost::gregorian::Jan, 1);
+  boost::gregorian::date dateNow(boost::gregorian::day_clock::universal_day());
+  boost::gregorian::date dateLast(dateNow.year(), boost::gregorian::Jan, 1);
   
   // Hold the delay for non compressed stats
   boost::gregorian::date_duration dd_week(c.DAYS_FOR_DETAILS);
@@ -1209,13 +1243,19 @@ void compressionThread(const Config c) {
         boost::mutex::scoped_lock lock(mutex);
         cout << "----- COMPRESSION RUNNING now -----" << endl;
         
+        // Get date
+        now = time(0);
+        timeinfo = localtime(&now);
+        strftime (buffer, 80, "%c", timeinfo);
+        cout << buffer << endl;
+        
         // Reconstruct list of modules
         setModules.clear();
         getDBModules(setModules);
         
         //-- Reloop thru all days to j-x in order to remove details and store days only
         // Loop thru day since last parsing
-        boost::gregorian::day_iterator ditr(last);
+        boost::gregorian::day_iterator ditr(dateLast);
         for (;ditr <= today; ++ditr) {
           //produces "C: 2011-Nov-04", "C: 2011-Nov-05", ...
           cout << "C: " << to_simple_string(*ditr) << flush;
@@ -1270,7 +1310,7 @@ void compressionThread(const Config c) {
         
         cout << "----- COMPRESSION END now -----" << endl;
       
-        last = dateToHold;
+        dateLast = dateToHold;
         // Here is released the scoped mutex automatically
       }
       
@@ -1282,7 +1322,7 @@ void compressionThread(const Config c) {
     // Dump DB
     dbw_flush(db);
       
-    cout << "compressionThread - Stopped." << endl;
+    cout << "done" << endl;
   }
   return;
 }
@@ -1302,6 +1342,15 @@ void readLogThread(const Config c, unsigned long readPos) {
   ostringstream oss;
   int wait_time = 5; // wait time of 5 seconds if first read from log file
   
+  ifstream posFileIn ("posFile.log");
+  if (posFileIn.is_open()) {
+    if (posFileIn.good()) {
+      getline (posFileIn, data);
+      stringstream(data) >> readPos;
+    }
+    posFileIn.close();
+  } else cout << "Unable to open pos file." << endl;
+  
   try {
     while(true) {
       if (readPos != 0)
@@ -1310,13 +1359,23 @@ void readLogThread(const Config c, unsigned long readPos) {
       boost::this_thread::sleep(boost::posix_time::seconds(wait_time)); // interruptible
       
       // Write to file atomically
-      boost::mutex::scoped_lock lock(mutex);
+      if (! mutex.try_lock()) {
+        continue;
+      }
       
+      oss << c.LOG_FILE_PATH;
       now = time(0);
       timeinfo = localtime(&now);
-      strftime (buffer,80,"%c",timeinfo);
-      ///time_t midnight = now / 86400 * 86400; // seconds
-      oss << c.LOG_FILE_PATH;// << midnight;
+      
+      // File ext format date :
+      if (c.LOG_FILE_FORMAT == "timestamp") {
+        time_t midnight = now / 86400 * 86400; // seconds
+        oss << midnight;
+      } else if (c.LOG_FILE_FORMAT == "date") {
+        strftime (buffer, 11, "%Y-%m-%d", timeinfo);
+        oss << buffer;
+      }
+      strftime (buffer, 80, "%c", timeinfo);
       cout << '\r' << setfill(' ') << setw(150) << '\r' << buffer << " - READ LOG (" << oss.str() << "): starting at " << readPos << flush;
       
       //-- Reconstruct list of modules
@@ -1327,7 +1386,14 @@ void readLogThread(const Config c, unsigned long readPos) {
       readPos = readLogFile(c, oss.str(), setModules, readPos);
       cout << " until " << readPos << "." << flush;
       oss.str("");
-    
+      
+      // Save to pos file in case of error / server shutdown...
+      ofstream posFileOut ("posFile.log");
+      if (posFileOut.is_open()) {
+        posFileOut << readPos << "\n";
+        posFileOut.close();
+      } else cout << "Unable to save pos to file" << endl;
+      
       // Update list of modules in DB
       string modules = "";
       for(it=setModules.begin(); it!=setModules.end(); it++) {
@@ -1336,7 +1402,8 @@ void readLogThread(const Config c, unsigned long readPos) {
       dbw_remove(db, "modules");
       dbw_add(db, "modules", modules);
       
-      // Here is released the scoped mutex automatically
+      // Released the mutex
+      mutex.unlock();
     }
   } catch(boost::thread_interrupted &ex) {
     cout << "done" << endl;
@@ -1345,19 +1412,29 @@ void readLogThread(const Config c, unsigned long readPos) {
 
 /*!
  * \fn void handler_function(int signum)
- * \brief Handler to close properly db an threads.
+ * \brief Handler to close properly db and threads.
   *
  * \param signum Signal to catch
  */
-void handler_function(int signum) {  
-  // Stop server
-  cout << "Stoping server... " << flush;
+void handler_function(int signum) {
+  struct tm * timeinfo;
+  time_t now;
+  char buffer[80];
+  
+  // Stop server and block activities during webserver close
+  mutex.lock();
+  
+  // Get date
+  now = time(0);
+  timeinfo = localtime(&now);
+  strftime (buffer, 80, "%c", timeinfo);
+  cout << buffer << ". Stoping server... " << flush;
   mg_stop(ctx);
   
   cout << "done" << endl << "Stoping Compression Thread... " << flush;
   cThread.interrupt();
   cThread.join();
-  cout << "done" << endl << "Stoping LOG Thread... " << flush;
+  cout << "Stoping LOG Thread... " << flush;
   rThread.interrupt();
   rThread.join();
   
@@ -1365,22 +1442,25 @@ void handler_function(int signum) {
   //-- DB Release
   dbw_close(db);
   
+  cout << "done" << endl << "Good bye." << endl;
+  
+  // Release mutex
+  mutex.unlock();
+  
   exit(0);
 }
 
 int main(int argc, char* argv[]) {
   // Announce yourself
-  cout << "Welcome to mooWApp." << endl;
+  struct tm * timeinfo;
+  time_t now;
+  char buffer[80];
+  now = time(0);
+  timeinfo = localtime(&now);
+  strftime (buffer, 80, "%c", timeinfo);
+  cout << "Welcome to mooWApp." << endl << buffer << "." << endl;
   
   //-- Read configuration file
-  
-  //-- Look for arguments
-  if (argc <= 1 || argc > 2) {
-      cout << "Usage: " << argv[0] << " <Pos in file => 0 for beginning>" << endl;
-      exit(1);
-  }
-  
-  unsigned long readPos = atol(argv[1]);
   
   //-- Open the database
   Db db_(NULL, 0);
@@ -1401,13 +1481,20 @@ int main(int argc, char* argv[]) {
 
   //-- Start reading file
   cout << "Read file task start..." << endl;
+  unsigned long readPos = 0;
   rThread = boost::thread(&readLogThread, c, readPos);
   
   //-- Json web server set-up
   const char *soptions[] = {"listening_ports", c.LISTENING_PORT.c_str(), NULL};
   cout << "Server now listening on " << c.LISTENING_PORT << endl;
   ctx = mg_start(&callback, NULL, soptions);
-  getchar();  // Wait until user hits "enter" or any car
+  
+  // Wait until shutdown with SIGINT
+  while(1) {
+    sleep(1);
+  }
+  // For debug purpose
+  //getchar();  // Wait until user hits "enter" or any car
   
   // Stop properly
   handler_function(1);

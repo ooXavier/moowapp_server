@@ -96,15 +96,11 @@ void dbw_remove(Db *db, string strKey)
 void dbw_flush(Db *db)
 {
   // Flush data
-  if (db->sync(0) == 0) 
-    cout << "DB Flushed to disk" << endl;
-  else
+  if (db->sync(0) != 0)
     cout << "DB Flush failed" << endl;
   
   // then compact db 
-  if (db->compact(NULL, NULL, NULL, NULL, DB_FREE_SPACE, NULL) == 0) 
-    cout << "DB Compaction ended" << endl;
-  else
+  if (db->compact(NULL, NULL, NULL, NULL, DB_FREE_SPACE, NULL) != 0)
     cout << "DB Compaction failed" << endl;
     
   //TODO: Add a configuration variable to do either a simple compact() taskor a delete/full re-insert
@@ -116,7 +112,6 @@ void dbw_close(Db *db)
     if (db != NULL) {
       // Close the db
       db->close(0);
-      cout << "DB connection closed" << endl;
     }
   } catch(DbException &e) {
     cerr << "Error closing database." << endl;
