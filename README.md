@@ -37,11 +37,7 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
     make
 4. Then run...
 
-    ./moowapp_server
-
-5. If you wish to run it in background use :
-
-    nohup ./moowapp_server >nohup.out 2>&1 &
+    ./moowapp.sh start
 
 ## Changelogs
 ### V0.1
@@ -49,3 +45,5 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 
 ### V0.2
 - Version currently running for 6 months now on a server AIX 5.3 TL12
+- Add a startup script
+- Refactor folders
