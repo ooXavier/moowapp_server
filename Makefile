@@ -7,9 +7,9 @@ CFLAGS=-c -Wall -I$(BOOST)/include -I$(DATABASE)/include -I$(MONGOOSE) -pthread 
 # and make sure you have libstdc++.a into one of those two folders
 LDFLAGS=-L$(DATABASE)/lib -L$(MONGOOSE) -L$(BOOST)/lib
 LIBS= -ldb_cxx-5.3 -lboost_thread-mt -lboost_date_time -lboost_system
-SOURCES=configuration.cpp log_reader.cpp db_access_berkeleydb.cpp moowapp_server.cpp mongoose/mongoose.c
+SOURCES=src/configuration.cpp src/log_reader.cpp src/db_access_berkeleydb.cpp src/moowapp_server.cpp mongoose/mongoose.c
 OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLE=moowapp_server
+EXECUTABLE=bin/moowapp_server
 
 all: $(SOURCES) $(EXECUTABLE)
 
@@ -20,5 +20,5 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	-rm -f configuration.o log_reader.o db_access_berkeleydb.o moowapp_server.o
+	-rm -f src/configuration.o src/log_reader.o src/db_access_berkeleydb.o src/moowapp_server.o
 	-rm -f $(EXECUTABLE)

@@ -1,12 +1,13 @@
 #!/bin/sh
 
 APP="mooWApp Server"
-PID_FILE="mwa.pid"
-CONF_FILE="configuration.ini"
-APP_BIN=moowapp_server
+APP_BIN="bin/moowapp_server"
+CONF_FILE=configuration.ini
+PID_FILE=bin/mwa.pid
+LOG_FILE=bin/mwa.log
 
 function do_start {
-  nohup ./$APP_BIN >mwa.log 2>&1 &
+  nohup $APP_BIN >$LOG_FILE 2>&1 &
   echo $! > $PID_FILE
 }
 

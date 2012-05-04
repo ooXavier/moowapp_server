@@ -1,9 +1,9 @@
 *.o
 *.so
 .DS_Store
-xav_*
+examples/xav_*
 mongoose
-moowapp_insert
-moowapp_server
+bin/moowapp_insert
+bin/moowapp_server
 configuration.ini
-mwa.*
+bin/mwa.*

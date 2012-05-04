@@ -6,7 +6,7 @@ LDFLAGS=-L$(DATABASE)/lib -L$(BOOST)/lib
 LIBS=-lboost_system -lboost_thread-mt -lboost_filesystem -lboost_program_options-mt -lboost_iostreams -lboost_date_time -lboost_regex -ldb_cxx-5.3
 SOURCES=configuration.cpp log_reader.cpp db_access_berkeleydb.cpp moowapp_insert.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLE=moowapp_insert
+EXECUTABLE=bin/moowapp_insert
 
 all: $(SOURCES) $(EXECUTABLE)
 
