@@ -1342,7 +1342,7 @@ void readLogThread(const Config c, unsigned long readPos) {
   ostringstream oss;
   int wait_time = 5; // wait time of 5 seconds if first read from log file
   
-  ifstream posFileIn ("posFile.log");
+  ifstream posFileIn ("mwa.pos");
   if (posFileIn.is_open()) {
     if (posFileIn.good()) {
       getline (posFileIn, data);
@@ -1388,7 +1388,7 @@ void readLogThread(const Config c, unsigned long readPos) {
       oss.str("");
       
       // Save to pos file in case of error / server shutdown...
-      ofstream posFileOut ("posFile.log");
+      ofstream posFileOut ("mwa.pos");
       if (posFileOut.is_open()) {
         posFileOut << readPos << "\n";
         posFileOut.close();
