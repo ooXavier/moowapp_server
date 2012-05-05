@@ -31,9 +31,11 @@ Db * dbw_open(Db *db_, const char *basedir)
   catch(DbException &e) {
     cerr << "Error opening database: " << basedir << "\n";
     cerr << e.what() << endl;
+	return NULL;
   } catch(exception &e) {
     cerr << "Error opening database: " << basedir << "\n";
     cerr << e.what() << endl;
+	return NULL;
   }
   
   return db_;
@@ -98,8 +100,11 @@ void dbw_flush(Db *db)
   // Flush data
   if (db->sync(0) != 0)
     cout << "DB Flush failed" << endl;
-  
-  // then compact db 
+}
+
+void dbw_compact(Db *db)
+{
+  // Compact db 
   if (db->compact(NULL, NULL, NULL, NULL, DB_FREE_SPACE, NULL) != 0)
     cout << "DB Compaction failed" << endl;
     

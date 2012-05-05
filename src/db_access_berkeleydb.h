@@ -19,6 +19,7 @@ std::string dbw_get(Db *db, std::string strKey);
 int dbw_add(Db *db, std::string strKey, std::string strValue);
 void dbw_remove(Db *db, std::string strKey);
 void dbw_flush(Db *db);
+void dbw_compact(Db *db);
 void dbw_close(Db *db);
 void dbw_drop(const char *basedir);
 

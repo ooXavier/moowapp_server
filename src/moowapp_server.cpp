@@ -38,7 +38,7 @@ Db *db = NULL;
 Config c; //-- Read configuration file
 boost::mutex mutex; // Mutex for thread blocking
 struct mg_context *ctx;
-boost::thread cThread, rThread;
+bool quit;
 
 /*!
  * \fn int getDBModules(set<string> &setModules)
@@ -1227,21 +1227,22 @@ void compressionThread(const Config c) {
   boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() + dd, boost::posix_time::time_duration(3,0,0));
   
   try {
-    while(true)
-    {
+    while(true) {
       boost::gregorian::date today(boost::gregorian::day_clock::universal_day());
       boost::gregorian::date dateToHold(today - dd_week);
       boost::posix_time::ptime timeNow(boost::posix_time::second_clock::universal_time());
       //cout << "Obj:" << boost::posix_time::to_simple_string(t) << " & now:" << boost::posix_time::to_simple_string(timeNow) << endl;
-      if (timeNow >= t) {
+	  	  
+      // Compression to file atomically
+      if (timeNow >= t && mutex.try_lock())
+      {
+        cout << "----- COMPRESSION RUNNING now -----" << endl;
+		
         /// FOR DEBUG
         //t += boost::posix_time::minutes(2*c.LOGS_COMPRESSION_INTERVAL);
         /// FOR Real use +1 day
         t += boost::posix_time::hours(24);
         
-        // Compression to file atomically
-        boost::mutex::scoped_lock lock(mutex);
-        cout << "----- COMPRESSION RUNNING now -----" << endl;
         
         // Get date
         now = time(0);
@@ -1303,28 +1304,27 @@ void compressionThread(const Config c) {
               oss.str("");
             }
           }
-        }
+          
+		      // Flush changes to DB
+          dbw_flush(db);
+		    }
       
-        // Dump DB
-        dbw_flush(db);
+        // DB compression
+        dbw_compact(db);
         
         cout << "----- COMPRESSION END now -----" << endl;
       
         dateLast = dateToHold;
-        // Here is released the scoped mutex automatically
+        // Release the mutex
+        mutex.unlock();
       }
       
       ///FOR REAL USE 10 minutes
       boost::this_thread::sleep(boost::posix_time::minutes(10));
     }
-  
   } catch(boost::thread_interrupted &ex) {
-    // Dump DB
-    dbw_flush(db);
-      
     cout << "done" << endl;
   }
-  return;
 }
 
 /*!
@@ -1417,40 +1417,12 @@ void readLogThread(const Config c, unsigned long readPos) {
  * \param signum Signal to catch
  */
 void handler_function(int signum) {
-  struct tm * timeinfo;
-  time_t now;
-  char buffer[80];
-  
-  // Stop server and block activities during webserver close
-  mutex.lock();
-  
-  // Get date
-  now = time(0);
-  timeinfo = localtime(&now);
-  strftime (buffer, 80, "%c", timeinfo);
-  cout << buffer << ". Stoping server... " << flush;
-  mg_stop(ctx);
-  
-  cout << "done" << endl << "Stoping Compression Thread... " << flush;
-  cThread.interrupt();
-  cThread.join();
-  cout << "Stoping LOG Thread... " << flush;
-  rThread.interrupt();
-  rThread.join();
-  
-  cout << "Closing DB... " << flush;
-  //-- DB Release
-  dbw_close(db);
-  
-  cout << "done" << endl << "Good bye." << endl;
-  
-  // Release mutex
-  mutex.unlock();
-  
-  exit(0);
+  quit = true;
 }
 
 int main(int argc, char* argv[]) {
+  boost::thread cThread, rThread;
+  
   // Announce yourself
   struct tm * timeinfo;
   time_t now;
@@ -1459,6 +1431,8 @@ int main(int argc, char* argv[]) {
   timeinfo = localtime(&now);
   strftime (buffer, 80, "%c", timeinfo);
   cout << "Welcome to mooWApp." << endl << buffer << "." << endl;
+  
+  quit = false;
   
   //-- Read configuration file
   
@@ -1490,14 +1464,32 @@ int main(int argc, char* argv[]) {
   ctx = mg_start(&callback, NULL, soptions);
   
   // Wait until shutdown with SIGINT
-  while(1) {
+  while(!quit) {
     sleep(1);
   }
   // For debug purpose
   //getchar();  // Wait until user hits "enter" or any car
   
-  // Stop properly
-  handler_function(1);
+  //-- Stop properly
+  now = time(0); // Get date
+  timeinfo = localtime(&now);
+  strftime (buffer, 80, "%c", timeinfo);
+  cout << buffer << ". Closing DB... " << flush;
+  // DB Release
+  dbw_close(db);
+  
+  cout << "done" << endl << "Stoping LOG Thread... " << flush;
+  rThread.interrupt();
+  rThread.join();
+  cout << "Stoping server... " << flush;
+  mg_stop(ctx);  
+  cout << "done" << endl;
+  if (c.COMPRESSION) {
+    cout << "Stoping Compression Thread... " << flush;
+    cThread.interrupt();
+    cThread.join();
+  }
+  cout << "Good bye." << endl;
   
   return 0;
 }
