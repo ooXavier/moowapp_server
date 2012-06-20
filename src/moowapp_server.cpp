@@ -55,6 +55,16 @@ int getDBModules(set<string> &setModules) {
   boost::split(setModules, strModules, boost::is_any_of("/"));
   setModules.erase(""); // Delete empty module
   
+  // Exclude modules configuration
+  if (c.EXCLUDE_MOD != "") {
+    set<string>::iterator it;
+    for(it=setModules.begin(); it!=setModules.end(); it++) {
+      if ((*it).find(c.EXCLUDE_MOD, 0) != string::npos) {
+        setModules.erase(*it);
+      }
+    }
+  }
+  
   if (c.DEBUG_APP_OTHERS || c.DEBUG_LOGS) cout << endl << "Known modules (" << setModules.size() << ") :" << strModules << endl;
   return 0;
 }

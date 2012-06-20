@@ -64,6 +64,7 @@ Config::Config(string cfgFile) {
   FILTER_SSL = (mapConf.find("FILTER_SSL") != mapConf.end()) ? mapConf["FILTER_SSL"] : "access.log";
   FILTER_URL1 = (mapConf.find("FILTER_URL1") != mapConf.end()) ? mapConf["FILTER_URL1"] : "-event.do";
   FILTER_URL2 = (mapConf.find("FILTER_URL2") != mapConf.end()) ? mapConf["FILTER_URL2"] : ".do";
+  EXCLUDE_MOD = (mapConf.find("EXCLUDE_MOD") != mapConf.end()) ? mapConf["EXCLUDE_MOD"] : "_v0";
   
   COMPRESSION = (mapConf.find("COMPRESSION") != mapConf.end()) ? (mapConf["COMPRESSION"] == "on") ? true : false : false;
   LISTENING_PORT = (mapConf.find("LISTENING_PORT") != mapConf.end()) ? mapConf["LISTENING_PORT"] : "9999";

@@ -24,6 +24,7 @@ public:
   
   std::string FILTER_URL1; // First string to search in access_log files
   std::string FILTER_URL2; // Second string to search in access_log files
+  std::string EXCLUDE_MOD; // Substring of module to exclude from stats
   
   bool COMPRESSION;
   int LOGS_READ_INTERVAL; // in seconds
