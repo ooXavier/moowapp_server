@@ -2,12 +2,11 @@
  * \file moowapp_server.cpp
  * \brief Web Statistics DB Server aka : mooWApp
  * \author Xavier ETCHEBER
- * \version 0.2.1
+ * \version 0.2.2
  */
 
 #include <iostream>
 #include <string>
-#include <cassert>
 #include <sstream> // stringstrezm
 #include <fstream> // ifstream, ofstream
 #include <set>
@@ -229,15 +228,14 @@ static void stats_app_intra(struct mg_connection *conn,
   map<int, string>::iterator itm;
   set<string> setModules, setOtherModules;
   set<string>::iterator its;
-  
-  //-- Set begining JSON string in response.
-  mg_printf(conn, "%s", standard_json_reply);
-  is_jsonp = handle_jsonp(conn, ri);
-  mg_printf(conn, "%s", "[{");
 
   //-- Get parameters in request.
   get_qsvar(ri, "mode", strMode, sizeof(strMode));
-  assert(strMode[0] != '\0');
+  if(strMode[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: mode");
+    return;
+  }
   mode = string(strMode);
   if (mode == "all") {
     get_qsvar(ri, "apps", strModules, sizeof(strModules));
@@ -246,13 +244,30 @@ static void stats_app_intra(struct mg_connection *conn,
     get_qsvar(ri, "modules", strModules, sizeof(strModules));
   }
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
-  assert(strDates[0] != '\0');
+  if(strDates[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: dates");
+    return;
+  }
   sscanf(strDates, "%d", &max);
   get_qsvar(ri, "offset", strOffset, sizeof(strOffset));
-  assert(strOffset[0] != '\0');
+  if(strOffset[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: offset");
+    return;
+  }
   sscanf(strOffset, "%d", &offset);
   get_qsvar(ri, "type", strType, sizeof(strType));
-  assert(strType[0] != '\0');
+  if(strType[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: type");
+    return;
+  }
+  
+  //-- Set begining JSON string in response.
+  mg_printf(conn, "%s", standard_json_reply);
+  is_jsonp = handle_jsonp(conn, ri);
+  mg_printf(conn, "%s", "[{");
   
   //-- Set each date to according offset in response.
   max += offset;
@@ -455,7 +470,11 @@ static void stats_app_day(struct mg_connection *conn,
 
   //-- Get parameters in request.
   get_qsvar(ri, "mode", strMode, sizeof(strMode));
-  assert(strMode[0] != '\0');
+  if(strMode[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: mode");
+    return;
+  }
   mode = string(strMode);
   if (mode == "all") {
     get_qsvar(ri, "apps", strModules, sizeof(strModules));
@@ -464,9 +483,17 @@ static void stats_app_day(struct mg_connection *conn,
     get_qsvar(ri, "modules", strModules, sizeof(strModules));
   }
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
-  assert(strDates[0] != '\0');
+  if(strDates[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: dates");
+    return;
+  }
   get_qsvar(ri, "type", strType, sizeof(strType));
-  assert(strType[0] != '\0');
+  if(strType[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: type");
+    return;
+  }
   
   //-- Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
@@ -700,7 +727,11 @@ static void stats_app_week(struct mg_connection *conn,
 
   //-- Get parameters in request.
   get_qsvar(ri, "mode", strMode, sizeof(strMode));
-  assert(strMode[0] != '\0');
+  if(strMode[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: mode");
+    return;
+  }
   mode = string(strMode);
   if (mode == "all") {
     get_qsvar(ri, "apps", strModules, sizeof(strModules));
@@ -709,13 +740,25 @@ static void stats_app_week(struct mg_connection *conn,
     get_qsvar(ri, "modules", strModules, sizeof(strModules));
   }
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
-  assert(strDates[0] != '\0');
+  if(strDates[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: dates");
+    return;
+  }
   sscanf(strDates, "%d", &max);
   get_qsvar(ri, "offset", strOffset, sizeof(strOffset));
-  assert(strOffset[0] != '\0');
+  if(strOffset[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: offset");
+    return;
+  }
   sscanf(strOffset, "%d", &offset);
   get_qsvar(ri, "type", strType, sizeof(strType));
-  assert(strType[0] != '\0');
+  if(strType[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: type");
+    return;
+  }
   
   //-- Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
@@ -936,7 +979,11 @@ static void stats_app_month(struct mg_connection *conn,
 
   //-- Get parameters in request.
   get_qsvar(ri, "mode", strMode, sizeof(strMode));
-  assert(strMode[0] != '\0');
+  if(strMode[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: mode");
+    return;
+  }
   mode = string(strMode);
   if (mode == "all") {
     get_qsvar(ri, "apps", strModules, sizeof(strModules));
@@ -944,15 +991,31 @@ static void stats_app_month(struct mg_connection *conn,
   } else {
     get_qsvar(ri, "modules", strModules, sizeof(strModules));
   }
-  assert(strModules[0] != '\0');
+  if(strModules[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: modules");
+    return;
+  }
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
-  assert(strDates[0] != '\0');
+  if(strDates[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: dates");
+    return;
+  }
   sscanf(strDates, "%d", &max);
   get_qsvar(ri, "offset", strOffset, sizeof(strOffset));
-  assert(strOffset[0] != '\0');
+  if(strOffset[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: offset");
+    return;
+  }
   sscanf(strOffset, "%d", &offset);
   get_qsvar(ri, "type", strType, sizeof(strType));
-  assert(strType[0] != '\0');
+  if(strType[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: type");
+    return;
+  }
   
   //-- Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
@@ -1166,8 +1229,8 @@ static const struct uri_config {
   {MG_NEW_REQUEST, "/stats_app_day", &stats_app_day},
   {MG_NEW_REQUEST, "/stats_app_week", &stats_app_week},
   {MG_NEW_REQUEST, "/stats_app_month", &stats_app_month},
-  {MG_HTTP_ERROR, "", &get_error}//,
-  //{0, NULL, NULL}
+  {MG_NEW_REQUEST, "/", &get_error},
+  {MG_HTTP_ERROR, "", &get_error}
 };
 
 /*!
@@ -1464,11 +1527,11 @@ int main(int argc, char* argv[]) {
   ctx = mg_start(&callback, NULL, soptions);
   
   // Wait until shutdown with SIGINT
-  while(!quit) {
-    sleep(1);
-  }
+  //while(!quit) {
+  //  sleep(1);
+  //}
   // For debug purpose
-  //getchar();  // Wait until user hits "enter" or any car
+  getchar();  // Wait until user hits "enter" or any car
   
   //-- Stop properly
   now = time(0); // Get date
