@@ -243,6 +243,11 @@ static void stats_app_intra(struct mg_connection *conn,
   } else {
     get_qsvar(ri, "modules", strModules, sizeof(strModules));
   }
+  if(strModules[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: modules");
+    return;
+  }
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
   if(strDates[0] == '\0') {
     mg_printf(conn, "%s", standard_json_reply);
@@ -482,6 +487,11 @@ static void stats_app_day(struct mg_connection *conn,
   } else {
     get_qsvar(ri, "modules", strModules, sizeof(strModules));
   }
+  if(strModules[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: modules");
+    return;
+  }
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
   if(strDates[0] == '\0') {
     mg_printf(conn, "%s", standard_json_reply);
@@ -641,7 +651,7 @@ static void stats_app_day(struct mg_connection *conn,
   //-- In all mode, add an "Others" application
   if (mode == "all" && setOtherModules.size() > 0) {
     map<int, int> mapResMod;
-    if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
+    if (c.DEBUG_APP_OTHERS) cout << "Others modules (" << setOtherModules.size() << "): " << flush;
     
     hourVisit = 0;
     //-- Get nb visit from DB
@@ -738,6 +748,11 @@ static void stats_app_week(struct mg_connection *conn,
     getDBModules(setOtherModules);
   } else {
     get_qsvar(ri, "modules", strModules, sizeof(strModules));
+  }
+  if(strModules[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: modules");
+    return;
   }
   get_qsvar(ri, "dates", strDates, sizeof(strDates));
   if(strDates[0] == '\0') {
