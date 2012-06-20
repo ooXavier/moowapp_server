@@ -1221,6 +1221,82 @@ static void stats_app_month(struct mg_connection *conn,
 }
 
 /*!
+ * \fn static void stats_modules_list(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \brief Build an HTTP response for the /stats_modules_list context.
+ *
+ * \param conn Opaque connection handler.
+ * \param request_info Information about HTTP request.
+ */
+static void stats_modules_list(struct mg_connection *conn,
+                            const struct mg_request_info *ri)
+{
+  bool is_jsonp;
+  int i, nbModules;
+  char strMode[6];     // Mode. Ex: other or all
+  char strModules[11]; // Number of modules. Ex: 4
+  char strModule[65];  // Modules name. Ex: module_test_1
+  ostringstream oss;
+  string mode;
+  set<string> setModules, setOtherModules;
+  set<string>::iterator it;
+
+  //-- Get parameters in request.
+  get_qsvar(ri, "mode", strMode, sizeof(strMode));
+  if(strMode[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: mode");
+    return;
+  }
+  mode = string(strMode);
+  if (mode == "all") {
+    getDBModules(setModules);
+  } else if (mode == "other") {
+    get_qsvar(ri, "modules", strModules, sizeof(strModules));
+    if(strModules[0] == '\0') {
+      mg_printf(conn, "%s", standard_json_reply);
+      mg_printf(conn, "%s", "Missing parameter: modules");
+      return;
+    }
+    getDBModules(setOtherModules); // Get all modules
+    
+    if (c.DEBUG_REQUESTS) cout << "stats_modules_list - other with " << strModules << " modules known." << endl << "Unknown are :" << endl;
+    
+    // Loop to put modules from request in a set
+    sscanf(strModules, "%d", &nbModules);
+    for(i = 0; i < nbModules; i++) {
+      oss << "m_" << i;
+      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      oss.str("");
+      if (strModule[0] == '\0') continue;
+      if (c.DEBUG_REQUESTS) cout << strModule << endl;
+      
+      // Remove this module from the OTHERS list
+      setOtherModules.erase(strModule);
+    }
+  }
+  
+  //-- Set begining JSON string in response.
+  mg_printf(conn, "%s", standard_json_reply);
+  is_jsonp = handle_jsonp(conn, ri);
+  mg_write(conn, "[{", 2);
+  
+  //-- Construct response
+  if (c.DEBUG_APP_OTHERS) cout << "Others modules (" << setOtherModules.size() << ")." << endl;
+  for(it=setOtherModules.begin(), i = 0; it!=setOtherModules.end(); it++, i++) {
+    oss << "\"" << i << "\": \"" << *it << "\", ";
+  }
+  string response = oss.str();
+  response = response.substr(0, response.size()-2); // Remove last ", "
+  
+  //-- Set end JSON string in response.
+  response += "}]";
+  if (is_jsonp) {
+    response += ")";
+  }
+  mg_write(conn, response.c_str(), response.length());
+}
+
+/*!
  * \fn static void get_error(struct mg_connection *conn, const struct mg_request_info *request_info)
  * \brief Build an HTTP error response.
  *
@@ -1244,6 +1320,7 @@ static const struct uri_config {
   {MG_NEW_REQUEST, "/stats_app_day", &stats_app_day},
   {MG_NEW_REQUEST, "/stats_app_week", &stats_app_week},
   {MG_NEW_REQUEST, "/stats_app_month", &stats_app_month},
+  {MG_NEW_REQUEST, "/stats_modules_list", &stats_modules_list},
   {MG_NEW_REQUEST, "/", &get_error},
   {MG_HTTP_ERROR, "", &get_error}
 };
