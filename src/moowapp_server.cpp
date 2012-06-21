@@ -119,6 +119,27 @@ void statsConstructResponse(vector< pair<string, map<int, int> > > &vRes, string
 }
 
 /*!
+ * \fn void convertDate(char strDate[31], string format)
+ * \brief Convert a string date from timestamp format to an other format (such as Y-M-D...).
+ *
+ * \param strDate Date to extract as string. Ex: 1314253853 or Thursday 25 November
+ * \param format New format for date.
+ */
+string convertDate(char strDate[31], string format) {
+  istringstream ss;
+  time_t tStamp;
+  struct tm * timeinfo;
+  string ret;
+  char strDateFormated[31];
+  
+  ss.str(strDate);
+  ss >> tStamp; //Ex: 1303639200
+  timeinfo = localtime(&tStamp);
+  strftime(strDateFormated, 31, format.c_str(), timeinfo);
+  return strDateFormated;
+}
+
+/*!
  * \fn static void get_qsvar(const struct mg_request_info *request_info, const char *name, char *dst, size_t dst_len)
  * \brief Get a value of particular form variable.
  *
@@ -229,11 +250,7 @@ static void stats_app_intra(struct mg_connection *conn,
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
-  istringstream ss;
-  string mode;
-  string visit;
-  time_t tStamp;
-  struct tm * timeinfo;
+  string mode, visit;
   map<int, string> mapDate;
   map<int, string>::iterator itm;
   set<string> setModules, setOtherModules;
@@ -294,23 +311,17 @@ static void stats_app_intra(struct mg_connection *conn,
     oss.str("");
     if (strDate[0] != '\0') {
       //cout << "ici: i=" << i << " ii=" << ii << " iii=" << iii << " => " << (offset + ii + iii) << " strDate=" << strDate << endl;
-      mg_printf(conn, "\"%d\":\"%s\",", (offset + ii + iii), strDate);
+      mg_printf(conn, "\"%d\":\"%s\",", (offset + ii + iii), strDate); // Timestamp returned
       
-      // Convert timestamp to Y-m-d
-      ss.str(strDate);
-      ss >> tStamp; //Ex: 1303639200;
-      timeinfo = localtime(&tStamp);
-      strftime(strDate, 31, "%Y-%m-%d", timeinfo);
-      mapDate.insert( pair<int,string>((offset + ii + iii), strDate) );
+      mapDate.insert( pair<int,string>((offset + ii + iii), convertDate(strDate, "%Y-%m-%d") ) ); // Convert timestamp to Y-m-d
     }
   }
   
   //-- Set Mode and Date in response.
-  // Extract "Day NDay Month" from timestamp
-  strftime(strDate, 31, "%A %d %B", timeinfo);
+  // Extract "Day NDay Month" from last timestamp
   // Put mode and label after the last date
   i = offset + ii + iii;
-  mg_printf(conn, "\"%d\":\"intra\",\"%d\":\"%s\"},", i, i+1, strDate);
+  mg_printf(conn, "\"%d\":\"intra\",\"%d\":\"%s\"},", i, i+1, convertDate(strDate, "%A %d %B").c_str());
   
   //-- Build visits stats in response for each modules.
   vector< pair<string, map<int, int> > > vRes;
@@ -474,11 +485,7 @@ static void stats_app_day(struct mg_connection *conn,
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
-  istringstream ss;
-  string mode;
-  string visit;
-  time_t tStamp;
-  struct tm * timeinfo;
+  string mode, visit;
   set<string> setModules, setOtherModules;
   set<string>::iterator it;
   unsigned int nbVisitForApp;
@@ -534,14 +541,10 @@ static void stats_app_day(struct mg_connection *conn,
   
   //-- Set Mode and Date in response.
   // Extract "Day NDay Month" from timestamp
-  ss.str(strDate);
-  ss >> tStamp; //Ex: 1303639200;
-  timeinfo = localtime(&tStamp);
-  strftime(strDate, 31, "%A %d %B", timeinfo);
-  mg_printf(conn, "\"%d\":\"day\",\"%d\":\"%s\"},", i, i+1, strDate);
+  mg_printf(conn, "\"%d\":\"day\",\"%d\":\"%s\"},", i, i+1, convertDate(strDate, "%A %d %B").c_str() );
   
-  // Convert timestamp to Y-m-d  
-  strftime(strDate, 31, "%Y-%m-%d", timeinfo);
+  // Convert timestamp to Y-m-d
+  string strDateFormated = convertDate(strDate, "%Y-%m-%d");
   
   //-- Build visits stats in response for each modules or app.
   vector< pair<string, map<int, int> > > vRes;
@@ -586,13 +589,13 @@ static void stats_app_day(struct mg_connection *conn,
         //-- Get nb visit from DB
         for(it=setModules.begin(); it!=setModules.end(); it++) {
           // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-          oss << *it << '/' << strType << "/" << strDate << '/' << dbTimes[l];
+          oss << *it << '/' << strType << "/" << strDateFormated << '/' << dbTimes[l];
           // Search Key (oss) in DB
           visit = dbw_get(db, oss.str());
           iVisit = 0;
           if (visit.length() > 0) {
             sscanf(visit.c_str(), "%d", &iVisit);
-            ////if (*it == "bureau") cout << oss.str() << " = " << iVisit << endl;
+            //if (*it == "bureau") cout << oss.str() << " = " << iVisit << endl;
           }
           int timeVal = 0;
           sscanf(dbTimes[l].c_str(), "%d", &timeVal);
@@ -626,7 +629,7 @@ static void stats_app_day(struct mg_connection *conn,
       k = hourVisit = 0;
       for(int l=0, max=DB_TIMES_SIZE;l<max;l++) {
         // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-        oss << strModule << '/' << strType << "/" << strDate << '/' << dbTimes[l];
+        oss << strModule << '/' << strType << "/" << strDateFormated << '/' << dbTimes[l];
         ////if (c.DEBUG_REQUESTS && l==0) cout << " visits for " << oss.str() << endl;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
@@ -671,7 +674,7 @@ static void stats_app_day(struct mg_connection *conn,
       for(it=setOtherModules.begin(), nbVisitForApp = 0; it!=setOtherModules.end(); it++) {
         if (c.DEBUG_APP_OTHERS && l == 0) cout << *it << ", ";
         // Build Key ex: "creer_modifier_retrocession/1/2011-04-24/150";
-        oss << *it << '/' << strType << "/" << strDate << '/' << timeVal;
+        oss << *it << '/' << strType << "/" << strDateFormated << '/' << timeVal;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         iVisit = 0;
@@ -735,12 +738,7 @@ static void stats_app_week(struct mg_connection *conn,
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
-  istringstream ss;
-  string mode;
-  string visit;
-  string date;
-  time_t tStamp;
-  struct tm * timeinfo;
+  string mode, visit, date;
   set<string> setDate, setModules, setOtherModules;
   set<string>::iterator it, itt;
   unsigned int nbVisitForApp;
@@ -812,12 +810,8 @@ static void stats_app_week(struct mg_connection *conn,
   string strYearMonth = date.substr(0, found+1);
   
   //-- Set Mode and Date in response.
-  // Extract "Day NDay Month" from timestamp
-  ss.str(strDate);
-  ss >> tStamp; //Ex: 1303639200;
-  timeinfo = localtime(&tStamp);
-  strftime(strDate, 31, "%B %Y", timeinfo); // Depend one request intra, day, week, month, year
-  mg_printf(conn, "\"%d\":\"month\",\"%d\":\"%s\"},", i, i+1, strDate);
+  // Extract "Day NDay Month" from timestamp // Depend one request intra, day, week, month, year
+  mg_printf(conn, "\"%d\":\"month\",\"%d\":\"%s\"},", i, i+1, convertDate(strDate, "%B %Y").c_str() );
   
   //-- Build visits stats in response for each modules.
   vector< pair<string, map<int, int> > > vRes;
@@ -992,12 +986,7 @@ static void stats_app_month(struct mg_connection *conn,
   char strMode[4];     // Mode. Ex: app or all
   char strType[2];     // Mode. Ex: 1 or 2 or 3
   ostringstream oss;
-  istringstream ss;
-  string mode;
-  string visit;
-  string date;
-  time_t tStamp;
-  struct tm * timeinfo;
+  string mode, visit, date;
   set<string> setDate, setModules, setOtherModules;
   set<string>::iterator it, itt;
   unsigned int nbVisitForApp;
@@ -1071,12 +1060,8 @@ static void stats_app_month(struct mg_connection *conn,
   string strYearMonth = date.substr(0, found+1);
   
   //-- Set Mode and Date in response.
-  // Extract "Day NDay Month" from timestamp
-  ss.str(strDate);
-  ss >> tStamp; //Ex: 1303639200;
-  timeinfo = localtime(&tStamp);
-  strftime(strDate, 31, "%B %Y", timeinfo); // Depend one request intra, day, week, month, year
-  mg_printf(conn, "\"%d\":\"month\",\"%d\":\"%s\"},", i, i+1, strDate);
+  // Extract "Day NDay Month" from timestamp // Depend one request intra, day, week, month, year
+  mg_printf(conn, "\"%d\":\"month\",\"%d\":\"%s\"},", i, i+1, convertDate(strDate, "%B %Y").c_str() );
   
   //-- Build visits stats in response for each modules or app.
   vector< pair<string, map<int, int> > > vRes;
