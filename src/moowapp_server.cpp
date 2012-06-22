@@ -1292,6 +1292,68 @@ static void stats_modules_list(struct mg_connection *conn,
 }
 
 /*!
+ * \fn static void stats_admin_list_mergemodules(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \brief List modules marked as to be merged in the stats for the next vacation
+ *
+ * \param conn Opaque connection handler.
+ * \param request_info Information about HTTP request.
+ */
+static void stats_admin_list_mergemodules(struct mg_connection *conn,
+                            const struct mg_request_info *ri)
+{
+  bool is_jsonp;
+  
+  //-- Set begining JSON string in response.
+  mg_printf(conn, "%s", standard_json_reply);
+  is_jsonp = handle_jsonp(conn, ri);
+  mg_write(conn, "[{", 2);
+  
+  //-- Construct response
+  string response = "";
+  
+  //-- Set end JSON string in response.
+  response += "}]";
+  if (is_jsonp) {
+    response += ")";
+  }
+  mg_write(conn, response.c_str(), response.length());
+}
+
+/*!
+ * \fn static void stats_admin_do_mergemodules(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \brief Mark two modules to be merged in the stats for each days collected in the next vacation
+ *
+ * \param conn Opaque connection handler.
+ * \param request_info Information about HTTP request.
+ */
+static void stats_admin_do_mergemodules(struct mg_connection *conn,
+                            const struct mg_request_info *ri)
+{
+  char strModule[65];  // Modules name. Ex: module_test_1
+  string module, moduleMerge;
+  
+  //-- Get parameters in request.
+  get_qsvar(ri, "module", strModule, sizeof(strModule));
+  if(strModule[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: module");
+    return;
+  }
+  module = string(strModule);
+  get_qsvar(ri, "mergein", strModule, sizeof(strModule));
+  if(strModule[0] == '\0') {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: mergein");
+    return;
+  }
+  moduleMerge = string(strModule);
+  
+  /*set<string> setModules;
+  set<string>::iterator it;
+  getDBModules(setOtherModules);*/
+}
+
+/*!
  * \fn static void get_error(struct mg_connection *conn, const struct mg_request_info *request_info)
  * \brief Build an HTTP error response.
  *
@@ -1316,6 +1378,8 @@ static const struct uri_config {
   {MG_NEW_REQUEST, "/stats_app_week", &stats_app_week},
   {MG_NEW_REQUEST, "/stats_app_month", &stats_app_month},
   {MG_NEW_REQUEST, "/stats_modules_list", &stats_modules_list},
+  {MG_NEW_REQUEST, "/stats_admin_do_mergemodules", &stats_admin_do_mergemodules},
+  {MG_NEW_REQUEST, "/stats_admin_list_mergemodules", &stats_admin_list_mergemodules},
   {MG_NEW_REQUEST, "/", &get_error},
   {MG_HTTP_ERROR, "", &get_error}
 };
