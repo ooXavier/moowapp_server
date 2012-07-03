@@ -119,13 +119,13 @@ void statsConstructResponse(vector< pair<string, map<int, int> > > &vRes, string
 }
 
 /*!
- * \fn void convertDate(char strDate[31], string format)
+ * \fn void convertDate(string strDate, string format)
  * \brief Convert a string date from timestamp format to an other format (such as Y-M-D...).
  *
  * \param strDate Date to extract as string. Ex: 1314253853 or Thursday 25 November
  * \param format New format for date.
  */
-string convertDate(char strDate[31], string format) {
+string convertDate(string strDate, string format) {
   istringstream ss;
   time_t tStamp;
   struct tm * timeinfo;
@@ -148,27 +148,63 @@ string convertDate(char strDate[31], string format) {
  * \param dst Destination buffer for the decoded variable.
  * \param dst_len Length of the destination buffer.
  */
-static void get_qsvar(const struct mg_request_info *request_info,
+static void get_qsvar(const struct mg_request_info *ri,
                       const char *name, char *dst, size_t dst_len)
 {
-  const char *qs = request_info->query_string;
+  const char *qs = ri->query_string;
   mg_get_var(qs, strlen(qs == NULL ? "" : qs), name, dst, dst_len);
 }
 
+static string get_qsstring(struct mg_connection *conn,
+                         const struct mg_request_info *ri,
+                         const string name)
+{
+  char *var, *buf;
+  size_t buf_len;
+  const char *cl;
+  int var_len;
+  buf_len = 0;
+  var = buf = NULL;
+  cl = mg_get_header(conn, "Content-Length");
+  if ((!strcmp(ri->request_method, "POST") || !strcmp(ri->request_method, "PUT")) && cl != NULL) {
+    buf_len = atoi(cl);
+    buf = (char*) malloc(buf_len);
+    /* Read in two pieces, to test continuation */
+    if (buf_len > 2) {
+      mg_read(conn, buf, 2);
+      mg_read(conn, buf + 2, buf_len - 2);
+    } else {
+      mg_read(conn, buf, buf_len);
+    }
+  } else if (ri->query_string != NULL) {
+    buf_len = strlen(ri->query_string);
+    buf = (char*) malloc(buf_len + 1);
+    strcpy(buf, ri->query_string);
+  }
+  var = (char*) malloc(buf_len + 1);
+  var_len = mg_get_var(buf, buf_len, name.c_str(), var, buf_len + 1);
+  //cout << "Value: [" << var << "]" << endl;
+  //cout << "Value size: [" << var_len << "]" << endl;
+  free(buf);
+  free(var);
+  return string(var);
+}
 
-void filteringPeriod(const struct mg_request_info *ri, int i, string &strYearMonth, set<string> &setDateToKeep) {
-  char strAppDays[61]; // Days in the month, starting at 0. Ex: 0-30 or 0-2,4,6-30
+void filteringPeriod(struct mg_connection *conn, const struct mg_request_info *ri,
+                     int i, string &strYearMonth, set<string> &setDateToKeep)
+{
+  string strAppDays; // Days in the month, starting at 0. Ex: 0-30 or 0-2,4,6-30
   ostringstream oss;
   
   // Get periods for that project (filtering)
   oss << "p_" << i << "_d";
-  get_qsvar(ri, oss.str().c_str(), strAppDays, sizeof(strAppDays));
+  strAppDays = get_qsstring(conn, ri, oss.str());
   oss.str("");
-  if (strAppDays[0] == '\0') sprintf(strAppDays, "1-31"); // Default value : complete month
+  if (strAppDays.length() == 0) strAppDays = "1-31"; // Default value : complete month
   //if (c.DEBUG_REQUESTS) cout << " days=" << strAppDays;
 
   //-- Store only date to be returned
-  if (strcmp(strAppDays, "1-31") != 0) {
+  if (strAppDays != "1-31") {
   
     // Split sequences separated by coma ; Ex 1-4,6,8-12,15
     vector<string> vectStrComa;
@@ -241,56 +277,54 @@ static void stats_app_intra(struct mg_connection *conn,
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, offset;
   unsigned int iVisit, minVisit;
-  char strDates[11];   // Number of dates. Ex: 60
-  char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
-  char strOffset[11];  // Date offset. Ex: 60
-  char strModules[11]; // Number of modules. Ex: 4
-  char strApplication[65];  // Application name. Ex: Calendar
-  char strModule[65];  // Modules name. Ex: gerer_connaissance
-  char strMode[4];     // Mode. Ex: app or all
-  char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
-  string mode, visit;
+  string strMode;        // Mode. Ex: app or all
+  string strModules;     // Number of modules. Ex: 4
+  string strDates;       // Number of dates. Ex: 60
+  string strType;        // Mode. Ex: 1:visits, 2:views, 3:statics
+  string strOffset;      // Date offset. Ex: 60
+  string strApplication; // Application name. Ex: Calendar
+  string strDate;        // Start date. Ex: 1314253853 or Thursday 25 November
+  string strModule;      // Modules name. Ex: gerer_connaissance
+  string visit;
   map<int, string> mapDate;
   map<int, string>::iterator itm;
   set<string> setModules, setOtherModules;
   set<string>::iterator its;
 
   //-- Get parameters in request.
-  get_qsvar(ri, "mode", strMode, sizeof(strMode));
-  if(strMode[0] == '\0') {
+  strMode = get_qsstring(conn, ri, "mode");
+  if(strMode.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
-  }
-  mode = string(strMode);
-  if (mode == "all") {
-    get_qsvar(ri, "apps", strModules, sizeof(strModules));
+  } else if (strMode == "all") {
+    strModules = get_qsstring(conn, ri, "apps");
     getDBModules(setOtherModules);
   } else {
-    get_qsvar(ri, "modules", strModules, sizeof(strModules));
+    strModules = get_qsstring(conn, ri, "modules");
   }
-  if(strModules[0] == '\0') {
+  if(strModules.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: modules");
     return;
   }
-  get_qsvar(ri, "dates", strDates, sizeof(strDates));
-  if(strDates[0] == '\0') {
+  strDates = get_qsstring(conn, ri, "dates");
+  if(strDates.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: dates");
     return;
   }
-  sscanf(strDates, "%d", &max);
-  get_qsvar(ri, "offset", strOffset, sizeof(strOffset));
-  if(strOffset[0] == '\0') {
+  sscanf(strDates.c_str(), "%d", &max);
+  strOffset = get_qsstring(conn, ri, "offset");
+  if(strOffset.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: offset");
     return;
   }
-  sscanf(strOffset, "%d", &offset);
-  get_qsvar(ri, "type", strType, sizeof(strType));
-  if(strType[0] == '\0') {
+  sscanf(strOffset.c_str(), "%d", &offset);
+  strType = get_qsstring(conn, ri, "type");
+  if(strType.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: type");
     return;
@@ -307,11 +341,11 @@ static void stats_app_intra(struct mg_connection *conn,
   for(i = offset; i < max; i++, ii++) {
     if (ii!=0 && ii%6 == 0) { ii = 0; iii+=10; }
     oss << "d_" << (offset + ii + iii);
-    get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
+    strDate = get_qsstring(conn, ri, oss.str());
     oss.str("");
-    if (strDate[0] != '\0') {
+    if (strDate.length() != 0) {
       //cout << "ici: i=" << i << " ii=" << ii << " iii=" << iii << " => " << (offset + ii + iii) << " strDate=" << strDate << endl;
-      mg_printf(conn, "\"%d\":\"%s\",", (offset + ii + iii), strDate); // Timestamp returned
+      mg_printf(conn, "\"%d\":\"%s\",", (offset + ii + iii), strDate.c_str()); // Timestamp returned
       
       mapDate.insert( pair<int,string>((offset + ii + iii), convertDate(strDate, "%Y-%m-%d") ) ); // Convert timestamp to Y-m-d
     }
@@ -325,33 +359,33 @@ static void stats_app_intra(struct mg_connection *conn,
   
   //-- Build visits stats in response for each modules.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules, "%d", &nbApps);
+  sscanf(strModules.c_str(), "%d", &nbApps);
   if (c.DEBUG_REQUESTS) cout << "stats_app_intra - with " << nbApps << flush;
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
-    if (mode == "all") {
+    if (strMode == "all") {
       oss << "p_" << i;
-      get_qsvar(ri, oss.str().c_str(), strApplication, sizeof(strApplication));
+      strApplication = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strApplication[0] == '\0') continue;
+      if (strApplication.length() == 0) continue;
       if (c.DEBUG_REQUESTS && i==0) cout << " apps." << endl;
 
       // Get nb module of that app in request
       oss << "m_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModules, sizeof(strModules));
+      strModules = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strModules[0] == '\0') continue;
+      if (strModules.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app " << strApplication << " [" << flush;
 
       // Loop to put modules from request in a set
       setModules.clear();
       
-      sscanf(strModules, "%d", &nbModules);
+      sscanf(strModules.c_str(), "%d", &nbModules);
       for(j = 0; j < nbModules; j++) {
         oss << "m_" << i << "_" << j;
-        get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+        strModule = get_qsstring(conn, ri, oss.str());
         oss.str("");
-        if (strModule[0] == '\0') continue;
+        if (strModule.length() == 0) continue;
         if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
         setModules.insert(strModule);
 
@@ -386,9 +420,9 @@ static void stats_app_intra(struct mg_connection *conn,
     else {
       if (c.DEBUG_REQUESTS && i==0) cout << " modules in app." << endl;
       oss << "m_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      strModule = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strModule[0] == '\0') continue;
+      if (strModule.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << " - module=" << strModule << endl;
       
       //-- and each dates.
@@ -412,7 +446,7 @@ static void stats_app_intra(struct mg_connection *conn,
   }
   
   //-- In all mode, add an "Others" application
-  if (mode == "all" && setOtherModules.size() > 0) {
+  if (strMode == "all" && setOtherModules.size() > 0) {
     map<int, int> mapResMod;
     if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
     
@@ -477,46 +511,45 @@ static void stats_app_day(struct mg_connection *conn,
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, k;
   unsigned int iVisit, hourVisit;
-  char strDates[11];   // Number of dates. Ex: 60
-  char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
-  char strModules[11]; // Number of modules. Ex: 4
-  char strApplication[65];  // Application name. Ex: Calendar
-  char strModule[65];  // Modules name. Ex: module_test_1
-  char strMode[4];     // Mode. Ex: app or all
-  char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
+  string strDates;       // Number of dates. Ex: 60
+  string strDate;        // Start date. Ex: 1314253853 or Thursday 25 November
+  string strModules;     // Number of modules. Ex: 4
+  string strApplication; // Application name. Ex: Calendar
+  string strModule;      // Modules name. Ex: module_test_1
+  string strMode;        // Mode. Ex: app or all
+  string strType;        // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
-  string mode, visit;
+  string visit;
   set<string> setModules, setOtherModules;
   set<string>::iterator it;
   unsigned int nbVisitForApp;
 
   //-- Get parameters in request.
-  get_qsvar(ri, "mode", strMode, sizeof(strMode));
-  if(strMode[0] == '\0') {
+  strMode = get_qsstring(conn, ri, "mode");
+  if(strMode.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
   }
-  mode = string(strMode);
-  if (mode == "all") {
-    get_qsvar(ri, "apps", strModules, sizeof(strModules));
+  if (strMode == "all") {
+    strModules = get_qsstring(conn, ri, "apps");
     getDBModules(setOtherModules);
   } else {
-    get_qsvar(ri, "modules", strModules, sizeof(strModules));
+    strModules = get_qsstring(conn, ri, "modules");
   }
-  if(strModules[0] == '\0') {
+  if(strModules.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: modules");
     return;
   }
-  get_qsvar(ri, "dates", strDates, sizeof(strDates));
-  if(strDates[0] == '\0') {
+  strDates = get_qsstring(conn, ri, "dates");
+  if(strDates.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: dates");
     return;
   }
-  get_qsvar(ri, "type", strType, sizeof(strType));
-  if(strType[0] == '\0') {
+  strType = get_qsstring(conn, ri, "type");
+  if(strType.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: type");
     return;
@@ -529,13 +562,13 @@ static void stats_app_day(struct mg_connection *conn,
   
   //-- Set each date in response.
   i = 0;
-  sscanf(strDates, "%d", &max);
+  sscanf(strDates.c_str(), "%d", &max);
   for(max += i; i < max; i++) {
     oss << "d_" << i;
-    get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
+    strDate = get_qsstring(conn, ri, oss.str());
     oss.str("");
-    if (strDate[0] != '\0') {
-      mg_printf(conn, "\"%d\":\"%s\",", i, strDate);
+    if (strDate.length() != 0) {
+      mg_printf(conn, "\"%d\":\"%s\",", i, strDate.c_str());
     }
   }
   
@@ -548,33 +581,33 @@ static void stats_app_day(struct mg_connection *conn,
   
   //-- Build visits stats in response for each modules or app.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules, "%d", &nbApps);
+  sscanf(strModules.c_str(), "%d", &nbApps);
   if (c.DEBUG_REQUESTS) cout << "stats_app_day - with " << nbApps << flush;
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
-    if (mode == "all") {
+    if (strMode == "all") {
       oss << "p_" << i;
-      get_qsvar(ri, oss.str().c_str(), strApplication, sizeof(strApplication));
+      strApplication = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strApplication[0] == '\0') continue;
+      if (strApplication.length() == 0) continue;
       if (c.DEBUG_REQUESTS && i==0) cout << " apps." << endl;
 
       // Get nb module of that app in request
       oss << "m_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModules, sizeof(strModules));
+      strModules = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strModules[0] == '\0') continue;
+      if (strModules.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app " << strApplication << " [" << flush;
 
       // Loop to put modules from request in a set
       setModules.clear();
       
-      sscanf(strModules, "%d", &nbModules);
+      sscanf(strModules.c_str(), "%d", &nbModules);
       for(j = 0; j < nbModules; j++) {
         oss << "m_" << i << "_" << j;
-        get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+        strModule = get_qsstring(conn, ri, oss.str());
         oss.str("");
-        if (strModule[0] == '\0') continue;
+        if (strModule.length() == 0) continue;
         if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
         setModules.insert(strModule);
 
@@ -620,9 +653,9 @@ static void stats_app_day(struct mg_connection *conn,
     else {
       if (c.DEBUG_REQUESTS && i==0) cout << " modules in app." << endl;
       oss << "m_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      strModule = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strModule[0] == '\0') continue;
+      if (strModule.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << " - module=" << strModule;
     
       //-- Get nb visit from DB
@@ -662,7 +695,7 @@ static void stats_app_day(struct mg_connection *conn,
   }
   
   //-- In all mode, add an "Others" application
-  if (mode == "all" && setOtherModules.size() > 0) {
+  if (strMode == "all" && setOtherModules.size() > 0) {
     map<int, int> mapResMod;
     if (c.DEBUG_APP_OTHERS) cout << "Others modules (" << setOtherModules.size() << "): " << flush;
     
@@ -729,55 +762,54 @@ static void stats_app_week(struct mg_connection *conn,
 {
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, offset;
-  char strDates[11];   // Number of dates. Ex: 31
-  char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
-  char strOffset[11];  // Date offset. Ex: 11
-  char strModules[11]; // Number of modules. Ex: 4
-  char strApplication[65];  // Application name. Ex: Calendar
-  char strModule[65];  // Modules name. Ex: gerer_connaissance
-  char strMode[4];     // Mode. Ex: app or all
-  char strType[2];     // Mode. Ex: 1:visits, 2:views, 3:statics
+  string strDates;   // Number of dates. Ex: 31
+  string strDate;    // Start date. Ex: 1314253853 or Thursday 25 November
+  string strOffset;  // Date offset. Ex: 11
+  string strModules; // Number of modules. Ex: 4
+  string strApplication;  // Application name. Ex: Calendar
+  string strModule;  // Modules name. Ex: gerer_connaissance
+  string strMode;     // Mode. Ex: app or all
+  string strType;     // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
-  string mode, visit, date;
+  string visit, date;
   set<string> setDate, setModules, setOtherModules;
   set<string>::iterator it, itt;
   unsigned int nbVisitForApp;
 
   //-- Get parameters in request.
-  get_qsvar(ri, "mode", strMode, sizeof(strMode));
-  if(strMode[0] == '\0') {
+  strMode = get_qsstring(conn, ri, "mode");
+  if(strMode.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
   }
-  mode = string(strMode);
-  if (mode == "all") {
-    get_qsvar(ri, "apps", strModules, sizeof(strModules));
+  if (strMode == "all") {
+    strModules = get_qsstring(conn, ri, "apps");
     getDBModules(setOtherModules);
   } else {
-    get_qsvar(ri, "modules", strModules, sizeof(strModules));
+    strModules = get_qsstring(conn, ri, "modules");
   }
-  if(strModules[0] == '\0') {
+  if(strModules.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: modules");
     return;
   }
-  get_qsvar(ri, "dates", strDates, sizeof(strDates));
-  if(strDates[0] == '\0') {
+  strDates = get_qsstring(conn, ri, "dates");
+  if(strDates.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: dates");
     return;
   }
-  sscanf(strDates, "%d", &max);
-  get_qsvar(ri, "offset", strOffset, sizeof(strOffset));
-  if(strOffset[0] == '\0') {
+  sscanf(strDates.c_str(), "%d", &max);
+  strOffset = get_qsstring(conn, ri, "offset");
+  if(strOffset.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: offset");
     return;
   }
-  sscanf(strOffset, "%d", &offset);
-  get_qsvar(ri, "type", strType, sizeof(strType));
-  if(strType[0] == '\0') {
+  sscanf(strOffset.c_str(), "%d", &offset);
+  strType = get_qsstring(conn, ri, "type");
+  if(strType.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: type");
     return;
@@ -792,10 +824,10 @@ static void stats_app_week(struct mg_connection *conn,
   max += offset;
   for(i = offset; i < max; i++) {
     oss << "d_" << i;
-    get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
+    strDate = get_qsstring(conn, ri, oss.str());
     oss.str("");
-    if (strDate[0] != '\0') {
-      mg_printf(conn, "\"%d\":\"%s\",", i, strDate);
+    if (strDate.length() != 0) {
+      mg_printf(conn, "\"%d\":\"%s\",", i, strDate.c_str());
       
       // Convert timestamp to Y-m-d
       boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
@@ -815,35 +847,35 @@ static void stats_app_week(struct mg_connection *conn,
   
   //-- Build visits stats in response for each modules.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules, "%d", &nbApps);
+  sscanf(strModules.c_str(), "%d", &nbApps);
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
-    if (mode == "all") {
+    if (strMode == "all") {
       oss << "p_" << i;
-      get_qsvar(ri, oss.str().c_str(), strApplication, sizeof(strApplication));
+      strApplication = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strApplication[0] == '\0') continue;
+      if (strApplication.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << "stats_app_week - app=" << strApplication;
       
       //-- Filter for days
       set<string> setDateToKeep;
-      filteringPeriod(ri, i, strYearMonth, setDateToKeep);
+      filteringPeriod(conn, ri, i, strYearMonth, setDateToKeep);
       
       // Get nb module of that app in request
       oss << "m_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModules, sizeof(strModules));
+      strModules = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strModules[0] == '\0') continue;
+      if (strModules.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app [" << flush;
       
       // Loop to put modules from request in a set
       setModules.clear();
-      sscanf(strModules, "%d", &nbModules);
+      sscanf(strModules.c_str(), "%d", &nbModules);
       for(j = 0; j < nbModules; j++) {
         oss << "m_" << i << "_" << j;
-        get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+        strModule = get_qsstring(conn, ri, oss.str());
         oss.str("");
-        if (strModule[0] == '\0') continue;
+        if (strModule.length() == 0) continue;
         if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
         setModules.insert(strModule);
         
@@ -853,7 +885,7 @@ static void stats_app_week(struct mg_connection *conn,
       if (c.DEBUG_REQUESTS) cout << "]" << endl;
         
       //-- and loop for each dates.
-      sscanf(strOffset, "%d", &j);
+      sscanf(strOffset.c_str(), "%d", &j);
       for(it=setDate.begin(); it!=setDate.end(); j++) {
         nbVisitForApp = 0;
         // If *it is not in setDateToKeep, return 0 values
@@ -888,14 +920,14 @@ static void stats_app_week(struct mg_connection *conn,
     }
     else {
       oss << "m_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      strModule = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strDate[0] == '\0') continue;
+      if (strDate.length() == 0) continue;
       
       if (c.DEBUG_REQUESTS) cout << "stats_app_week: " << strModule << endl;
     
       //-- and each dates.
-      sscanf(strOffset, "%d", &j);
+      sscanf(strOffset.c_str(), "%d", &j);
       for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
         //-- Get nb visit from DB
         // Build Key ex: "creer_modifier_retrocession/2011-04-24";
@@ -916,11 +948,11 @@ static void stats_app_week(struct mg_connection *conn,
   }
   
   //-- In all mode, add an "Others" application
-  if (mode == "all" && setOtherModules.size() > 0) {
+  if (strMode == "all" && setOtherModules.size() > 0) {
     map<int, int> mapResMod;
     if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
     
-    sscanf(strOffset, "%d", &j);
+    sscanf(strOffset.c_str(), "%d", &j);
     for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
       for(itt=setOtherModules.begin(), nbVisitForApp = 0; itt!=setOtherModules.end(); itt++) {
         //-- Get nb visit from DB
@@ -977,14 +1009,14 @@ static void stats_app_month(struct mg_connection *conn,
 {
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, offset;
-  char strDates[11];   // Number of dates. Ex: 31
-  char strDate[31];    // Start date. Ex: 1314253853 or Thursday 25 November
-  char strOffset[11];  // Date offset. Ex: 11
-  char strModules[11]; // Number of modules. Ex: 4
-  char strApplication[65];  // Application name. Ex: Calendar
-  char strModule[65];  // Modules name. Ex: module_test_1
-  char strMode[4];     // Mode. Ex: app or all
-  char strType[2];     // Mode. Ex: 1 or 2 or 3
+  string strDates;   // Number of dates. Ex: 31
+  string strDate;    // Start date. Ex: 1314253853 or Thursday 25 November
+  string strOffset;  // Date offset. Ex: 11
+  string strModules; // Number of modules. Ex: 4
+  string strApplication;  // Application name. Ex: Calendar
+  string strModule;  // Modules name. Ex: module_test_1
+  string strMode;     // Mode. Ex: app or all
+  string strType;     // Mode. Ex: 1 or 2 or 3
   ostringstream oss;
   string mode, visit, date;
   set<string> setDate, setModules, setOtherModules;
@@ -992,40 +1024,39 @@ static void stats_app_month(struct mg_connection *conn,
   unsigned int nbVisitForApp;
 
   //-- Get parameters in request.
-  get_qsvar(ri, "mode", strMode, sizeof(strMode));
-  if(strMode[0] == '\0') {
+  strMode = get_qsstring(conn, ri, "mode");
+  if(strMode.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
   }
-  mode = string(strMode);
-  if (mode == "all") {
-    get_qsvar(ri, "apps", strModules, sizeof(strModules));
+  if (strMode == "all") {
+    strModules = get_qsstring(conn, ri, "apps");
     getDBModules(setOtherModules);
   } else {
-    get_qsvar(ri, "modules", strModules, sizeof(strModules));
+    strModules = get_qsstring(conn, ri, "modules");
   }
-  if(strModules[0] == '\0') {
+  if(strModules.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: modules");
     return;
   }
-  get_qsvar(ri, "dates", strDates, sizeof(strDates));
-  if(strDates[0] == '\0') {
+  strDates = get_qsstring(conn, ri, "dates");
+  if(strDates.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: dates");
     return;
   }
-  sscanf(strDates, "%d", &max);
-  get_qsvar(ri, "offset", strOffset, sizeof(strOffset));
-  if(strOffset[0] == '\0') {
+  sscanf(strDates.c_str(), "%d", &max);
+  strOffset = get_qsstring(conn, ri, "offset");
+  if(strOffset.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: offset");
     return;
   }
-  sscanf(strOffset, "%d", &offset);
-  get_qsvar(ri, "type", strType, sizeof(strType));
-  if(strType[0] == '\0') {
+  sscanf(strOffset.c_str(), "%d", &offset);
+  strType = get_qsstring(conn, ri, "type");
+  if(strType.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: type");
     return;
@@ -1042,16 +1073,16 @@ static void stats_app_month(struct mg_connection *conn,
   max += offset;
   for(i = offset; i < max; i++) {
     oss << "d_" << i;
-    get_qsvar(ri, oss.str().c_str(), strDate, sizeof(strDate));
+    strDate = get_qsstring(conn, ri, oss.str());
     oss.str("");
-    if (strDate[0] != '\0') {
+    if (strDate.length() != 0) {
       // Convert timestamp to Y-m-d
       boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
       boost::gregorian::date d = pt.date();
       date = boost::gregorian::to_iso_extended_string(d);
       setDate.insert(date);
       //-- Set each date to according offset in response.
-      mg_printf(conn, "\"%d\":\"%s\",", i, strDate);
+      mg_printf(conn, "\"%d\":\"%s\",", i, strDate.c_str());
     }
   }
   
@@ -1065,35 +1096,35 @@ static void stats_app_month(struct mg_connection *conn,
   
   //-- Build visits stats in response for each modules or app.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules, "%d", &nbApps);
+  sscanf(strModules.c_str(), "%d", &nbApps);
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
-    if (mode == "all") {
+    if (strMode == "all") {
       oss << "p_" << i;
-      get_qsvar(ri, oss.str().c_str(), strApplication, sizeof(strApplication));
+      strApplication = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strApplication[0] == '\0') continue;
+      if (strApplication.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << "stats_app_month - app=" << strApplication;
       
       //-- Filter for days
       set<string> setDateToKeep;
-      filteringPeriod(ri, i, strYearMonth, setDateToKeep);
+      filteringPeriod(conn, ri, i, strYearMonth, setDateToKeep);
       
       // Get nb module of that app in request
       oss << "m_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModules, sizeof(strModules));
+      strModules = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strModules[0] == '\0') continue;
+      if (strModules.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app [" << flush;
       
       // Loop to put modules from request in a set
       setModules.clear();
-      sscanf(strModules, "%d", &nbModules);
+      sscanf(strModules.c_str(), "%d", &nbModules);
       for(j = 0; j < nbModules; j++) {
         oss << "m_" << i << "_" << j;
-        get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+        strModule = get_qsstring(conn, ri, oss.str());
         oss.str("");
-        if (strModule[0] == '\0') continue;
+        if (strModule.length() == 0) continue;
         if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
         setModules.insert(strModule);
         
@@ -1103,7 +1134,7 @@ static void stats_app_month(struct mg_connection *conn,
       if (c.DEBUG_REQUESTS) cout << "]" << endl;
         
       //-- and loop for each dates.
-      sscanf(strOffset, "%d", &j);
+      sscanf(strOffset.c_str(), "%d", &j);
       for(it=setDate.begin(); it!=setDate.end(); j++) {
         nbVisitForApp = 0;
         // If *it is not in setDateToKeep, return 0 values
@@ -1138,13 +1169,13 @@ static void stats_app_month(struct mg_connection *conn,
     }
     else {
       oss << "m_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      strModule = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strModule[0] == '\0') continue;
+      if (strModule.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << "stats_app_month - module=" << strModule << endl;
       
       //-- and each dates.
-      sscanf(strOffset, "%d", &j);
+      sscanf(strOffset.c_str(), "%d", &j);
       for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
         //-- Get nb visit from DB
         // Build Key ex: "creer_modifier_retrocession/1/2011-04-24";
@@ -1166,11 +1197,11 @@ static void stats_app_month(struct mg_connection *conn,
   }
   
   //-- In all mode, add an "Others" application
-  if (mode == "all" && setOtherModules.size() > 0) {
+  if (strMode == "all" && setOtherModules.size() > 0) {
     map<int, int> mapResMod;
     if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
     
-    sscanf(strOffset, "%d", &j);
+    sscanf(strOffset.c_str(), "%d", &j);
     for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
       for(itt=setOtherModules.begin(), nbVisitForApp = 0; itt!=setOtherModules.end(); itt++) {
         //-- Get nb visit from DB
@@ -1227,46 +1258,44 @@ static void stats_modules_list(struct mg_connection *conn,
 {
   bool is_jsonp;
   int i, nbModules;
-  char strMode[6];     // Mode. Ex: other or all
-  char strModules[11]; // Number of modules. Ex: 4
-  char strModule[65];  // Modules name. Ex: module_test_1
+  string strModules; // Number of modules. Ex: 4
+  string strModule;  // Modules name. Ex: module_test_1
+  string strMode;    // Mode. Ex: other or all
   ostringstream oss;
-  string mode;
-  set<string> setModules, setOtherModules;
+  set<string> setModules;
   set<string>::iterator it;
 
   //-- Get parameters in request.
-  get_qsvar(ri, "mode", strMode, sizeof(strMode));
-  if(strMode[0] == '\0') {
+  strMode = get_qsstring(conn, ri, "mode");
+  if(strMode.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
-  }
-  mode = string(strMode);
-  if (mode == "all") {
+  } else if (strMode == "all") {
     getDBModules(setModules);
-  } else if (mode == "other") {
-    get_qsvar(ri, "modules", strModules, sizeof(strModules));
-    if(strModules[0] == '\0') {
+    if (c.DEBUG_REQUESTS) cout << "stats_modules_list - all";
+  } else if (strMode == "other") {
+    strModules = get_qsstring(conn, ri, "modules");
+    if(strModules.length() == 0) {
       mg_printf(conn, "%s", standard_json_reply);
       mg_printf(conn, "%s", "Missing parameter: modules");
       return;
     }
-    getDBModules(setOtherModules); // Get all modules
+    getDBModules(setModules); // Get all modules
     
     if (c.DEBUG_REQUESTS) cout << "stats_modules_list - other with " << strModules << " modules known." << endl << "Unknown are :" << endl;
     
     // Loop to put modules from request in a set
-    sscanf(strModules, "%d", &nbModules);
+    sscanf(strModules.c_str(), "%d", &nbModules);
     for(i = 0; i < nbModules; i++) {
       oss << "m_" << i;
-      get_qsvar(ri, oss.str().c_str(), strModule, sizeof(strModule));
+      strModule = get_qsstring(conn, ri, oss.str());
       oss.str("");
-      if (strModule[0] == '\0') continue;
+      if (strModule.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << strModule << endl;
       
       // Remove this module from the OTHERS list
-      setOtherModules.erase(strModule);
+      setModules.erase(strModule);
     }
   }
   
@@ -1276,8 +1305,8 @@ static void stats_modules_list(struct mg_connection *conn,
   mg_write(conn, "[{", 2);
   
   //-- Construct response
-  if (c.DEBUG_APP_OTHERS) cout << "Others modules (" << setOtherModules.size() << ")." << endl;
-  for(it=setOtherModules.begin(), i = 0; it!=setOtherModules.end(); it++, i++) {
+  if (c.DEBUG_APP_OTHERS) cout << "Others modules (" << setModules.size() << ")." << endl;
+  for(it=setModules.begin(), i = 0; it!=setModules.end(); it++, i++) {
     oss << "\"" << i << "\": \"" << *it << "\", ";
   }
   string response = oss.str();
@@ -1333,15 +1362,14 @@ static void stats_admin_do_mergemodules(struct mg_connection *conn,
   string module, moduleMerge;
   
   //-- Get parameters in request.
-  get_qsvar(ri, "module", strModule, sizeof(strModule));
-  if(strModule[0] == '\0') {
+  module = get_qsstring(conn, ri, "module");
+  if(module.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: module");
     return;
   }
-  module = string(strModule);
-  get_qsvar(ri, "mergein", strModule, sizeof(strModule));
-  if(strModule[0] == '\0') {
+  moduleMerge = get_qsstring(conn, ri, "mergein");
+  if(moduleMerge.length() == 0) {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mergein");
     return;
@@ -1567,8 +1595,9 @@ void readLogThread(const Config c, unsigned long readPos) {
   
   try {
     while(true) {
-      if (readPos != 0)
+      if (readPos != 0) {
         wait_time = c.LOGS_READ_INTERVAL;
+      }
       
       boost::this_thread::sleep(boost::posix_time::seconds(wait_time)); // interruptible
       
