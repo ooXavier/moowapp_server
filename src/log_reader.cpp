@@ -32,15 +32,21 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   SslLog logLine;
   
   // Check the filter in the line before going further
+  size_t foundExt=line.find(c.FILTER_EXTENSION);
   size_t foundUrl=line.find(c.FILTER_URL1);
-  if (foundUrl!=string::npos) {
-    logLine.type = "1"; // Keep only URL with -event.do
+  if ((foundExt!=string::npos) && (foundUrl!=string::npos)) {
+    logLine.type = "1"; // Keep only URL with return code " 200 "
   } else {
     foundUrl=line.find(c.FILTER_URL2);
-    if (foundUrl!=string::npos) {
-      logLine.type = "2";// Keep only URL with .do and without -event.do
+    if ((foundExt!=string::npos) && (foundUrl!=string::npos)) {
+      logLine.type = "2";// Keep only URL with return code " 302 "
     } else {
-      return false;
+      /*foundUrl=line.find(c.FILTER_URL3);
+      if ((foundExt!=string::npos) && (foundUrl!=string::npos)) {
+        logLine.type = "3";// Keep only URL with return code " 404 "
+      } else {*/
+        return false;
+      //}
     }
   }
   //cout << "line: " << line << endl;
@@ -98,6 +104,12 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   logLine.app = strs[6].substr(1, slash-1);
   ///if (c.DEBUG_LOGS) cout << "> Url: " << strUrl;
   if (c.DEBUG_LOGS) cout << "> Url: " << strs[6];
+  /*if (strs[9] == "-") {
+    logLine.responseSize = "0";
+  } else {
+    logLine.responseSize = strs[9];
+  }
+  logLine.responseDuration = strs[10];*/
   
   // Set Key
   logLine.logKey = logLine.app+'/'+logLine.type+'/'+logLine.date_d+'/'+logLine.date_t;
@@ -127,37 +139,6 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   return true;
 }
 
-// ifstream method is blocking some calls, so the C style is better here
-/*unsigned long readLogFile(Config c, const string strFile, set<string> &setModules, unsigned long readPos) {
-  ifstream ifs (strFile.c_str(), ios::binary );
-  if (! ifs) {
-    cerr << "Error opening file" << strFile << endl;
-    return 0;
-  }
-  
-  // set the file to point to the last read position
-  ifs.seekg(readPos);
-
-  int i = 0; // nb of lines in file
-  int myI = 0; // nb of lines matching stg
-  string line;
-  
-  if (c.DEBUG_LOGS) cout << "> Parsing logs" << endl;
-  
-  while (getline(ifs, line)) {
-    readPos = ifs.tellg();
-    const string str = line;
-    //if (analyseLine(c, str, setModules)) myI++;
-    i++;
-  }
-  
-  // all of the data has been read; close the file.
-  ifs.close();
-  cout << ". Visits inserted: " << myI << " from " << i << " lines." << flush;
-  
-  return readPos;
-}*/
-
 unsigned long readLogFile(Config c, const string strFile, set<string> &setModules, unsigned long readPos) {
   char * buffer;
   unsigned long size, lSize;
@@ -172,7 +153,7 @@ unsigned long readLogFile(Config c, const string strFile, set<string> &setModule
   lSize = ftell (pFile);
   if (lSize == readPos) {
     fclose (pFile);
-    cout << ". Already at end of file." << flush;
+    ////cout << ". Already at end of file." << flush;
     return lSize;
   }
   lSize -= readPos;
@@ -207,7 +188,7 @@ unsigned long readLogFile(Config c, const string strFile, set<string> &setModule
   }
   free (buffer);
   
-  cout << ". Visits inserted: " << myI << " from " << i << " lines." << flush;
+  /////cout << ". Visits inserted: " << myI << " from " << i << " lines." << flush;
   
   return size;
 }

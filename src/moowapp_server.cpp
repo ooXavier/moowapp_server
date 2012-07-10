@@ -70,6 +70,46 @@ int getDBModules(set<string> &setModules) {
 }
 
 /*!
+ * \fn int removeDBModules(set<string> &setDeleteModules)
+ * \brief Remove some modules from DB storage.
+ *
+ * \param setDeleteModules A set of modules to be deleted from DB storage.
+ */
+int removeDBModules(set<string> &setDeleteModules) {
+  //-- Create a set of all known applications in DB
+  string strModules = dbw_get(db, "modules");
+  
+  if (strModules.length() <= 0)
+    return 1;
+  
+  set<string> setModules;
+  boost::split(setModules, strModules, boost::is_any_of("/"));
+  setModules.erase(""); // Delete empty module
+  
+  // Remove "modules to be deleted" from modules set
+  set<string>::iterator it, itt;
+  for(it=setDeleteModules.begin(); it!=setDeleteModules.end(); it++) {
+    for(itt=setModules.begin(); itt!=setModules.end(); itt++) {
+      if ((*itt).find((*it), 0) != string::npos) {
+        setModules.erase(*itt);
+      }
+    }
+  }
+  
+  // Convert modules set to DB line
+  string value = "";
+  for(itt=setModules.begin(); itt!=setModules.end(); itt++) {
+    value += (*itt) + "/";
+  }
+  dbw_remove(db, "modules");
+  dbw_add(db, "modules", value);
+  //cout << "New line: " << value << endl;
+  
+  // Replace in DB
+  return 0;
+}
+
+/*!
  * \fn void statsAddSumRow(vector< pair<string, map<int, int> > > &vRes, int setDateSize)
  * \brief Insert in front of the vector in param, a SUM of visits by days
  *
@@ -1520,6 +1560,7 @@ static void stats_admin_list_mergemodules(struct mg_connection *conn,
 static void stats_admin_do_mergemodules(struct mg_connection *conn,
                                         const struct mg_request_info *ri)
 {
+  bool is_jsonp;
   string strModule; // Modules name. Ex: module_test_1
   string moduleMerge;
   
@@ -1544,9 +1585,26 @@ static void stats_admin_do_mergemodules(struct mg_connection *conn,
     return;
   }
   
-  /*set<string> setModules;
-  set<string>::iterator it;
-  getDBModules(setOtherModules);*/
+  set<string> setToBeDeleted;
+  setToBeDeleted.insert(strModule);
+  //cout << "Delete: " << strModule << endl;
+  removeDBModules(setToBeDeleted);
+  
+  
+  //-- Set begining JSON string in response.
+  mg_printf(conn, "%s", standard_json_reply);
+  is_jsonp = handle_jsonp(conn, ri);
+  mg_write(conn, "[{", 2);
+  
+  //-- Construct response
+  string response = "\"delete\": \"" + strModule + "\"";
+  
+  //-- Set end JSON string in response.
+  response += "}]";
+  if (is_jsonp) {
+    response += ")";
+  }
+  mg_write(conn, response.c_str(), response.length());
 }
 
 /*!
@@ -1631,7 +1689,7 @@ void compressionThread(const Config c) {
   boost::gregorian::date_duration dd_week(c.DAYS_FOR_DETAILS);
   
   /// FOR DEBUG purpose USE minutes + 1
-  //boost::posix_time::ptime t = boost::posix_time::second_clock::universal_time() + boost::posix_time::minutes(LOGS_COMPRESSION_INTERVAL);
+  //boost::posix_time::ptime t = boost::posix_time::second_clock::universal_time() + boost::posix_time::minutes(c.LOGS_COMPRESSION_INTERVAL);
   /// FOR REAL usage USE a specific date/time : the next day at 3 o'clock
   boost::gregorian::date_duration dd(1);
   boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() + dd, boost::posix_time::time_duration(3,0,0));
@@ -1683,8 +1741,9 @@ void compressionThread(const Config c) {
           // Loop thru modules
           for(it=setModules.begin(); it!=setModules.end(); it++) {
             for(int lineType = 1; lineType <= 2; lineType++) {
-              // 1=> URL with -event.do
-              // 2 => URL with .do and without -event.do
+              // 1=> URL with return code "200"
+              // 2 => URL with return code "302"
+              // 2 => URL with return code "404"
               dayVisit = 0;
               oss << *it << '/' << lineType << '/' << ditr->year() << "-" << setfill('0') << setw(2) << monthNumber
                   << "-" << setfill('0') << setw(2) << ditr->day();
@@ -1786,8 +1845,8 @@ void readLogThread(const Config c, unsigned long readPos) {
         strftime (buffer, 11, "%Y-%m-%d", timeinfo);
         oss << buffer;
       }
-      strftime (buffer, 80, "%c", timeinfo);
-      cout << '\r' << setfill(' ') << setw(150) << '\r' << buffer << " - READ LOG (" << oss.str() << "): starting at " << readPos << flush;
+      /////strftime (buffer, 80, "%c", timeinfo);
+      /////cout << '\r' << setfill(' ') << setw(150) << '\r' << buffer << " - READ LOG (" << oss.str() << "): starting at " << readPos << flush;
       
       //-- Reconstruct list of modules
       set<string> setModules;
@@ -1795,7 +1854,7 @@ void readLogThread(const Config c, unsigned long readPos) {
       getDBModules(setModules);
     
       readPos = readLogFile(c, oss.str(), setModules, readPos);
-      cout << " until " << readPos << "." << flush;
+      /////cout << " until " << readPos << "." << flush;
       oss.str("");
       
       // Save to pos file in case of error / server shutdown...
@@ -1875,11 +1934,11 @@ int main(int argc, char* argv[]) {
   ctx = mg_start(&callback, NULL, soptions);
   
   // Wait until shutdown with SIGINT
-  //while(!quit) {
-  //  sleep(1);
-  //}
+  while(!quit) {
+    sleep(1);
+  }
   // For debug purpose
-  getchar();  // Wait until user hits "enter" or any car
+  //getchar();  // Wait until user hits "enter" or any car
   
   //-- Stop properly
   now = time(0); // Get date

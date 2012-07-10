@@ -26,6 +26,8 @@ struct SslLog {
   std::string date_d;
   std::string date_t;
   std::string logKey;
+  std::string responseSize;
+  std::string responseDuration;
   int visit;
 };
 

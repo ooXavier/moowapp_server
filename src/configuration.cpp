@@ -62,8 +62,10 @@ Config::Config(string cfgFile) {
   DB_BUFFER = (1024*1024*2);
   FILTER_PATH = (mapConf.find("FILTER_PATH") != mapConf.end()) ? mapConf["FILTER_PATH"] : ".";
   FILTER_SSL = (mapConf.find("FILTER_SSL") != mapConf.end()) ? mapConf["FILTER_SSL"] : "access.log";
-  FILTER_URL1 = (mapConf.find("FILTER_URL1") != mapConf.end()) ? mapConf["FILTER_URL1"] : "-event.do";
-  FILTER_URL2 = (mapConf.find("FILTER_URL2") != mapConf.end()) ? mapConf["FILTER_URL2"] : ".do";
+  FILTER_EXTENSION = (mapConf.find("FILTER_EXTENSION") != mapConf.end()) ? mapConf["FILTER_EXTENSION"] : ".do";
+  FILTER_URL1 = (mapConf.find("FILTER_URL1") != mapConf.end()) ? mapConf["FILTER_URL1"] : " 200 ";
+  FILTER_URL2 = (mapConf.find("FILTER_URL2") != mapConf.end()) ? mapConf["FILTER_URL2"] : " 302 ";
+  FILTER_URL3 = (mapConf.find("FILTER_URL3") != mapConf.end()) ? mapConf["FILTER_URL3"] : " 404 ";
   EXCLUDE_MOD = (mapConf.find("EXCLUDE_MOD") != mapConf.end()) ? mapConf["EXCLUDE_MOD"] : "_v0";
   
   COMPRESSION = (mapConf.find("COMPRESSION") != mapConf.end()) ? (mapConf["COMPRESSION"] == "on") ? true : false : false;

@@ -22,8 +22,10 @@ public:
   std::string FILTER_PATH; // %PATH% of the log files to analyse for insertion
   std::string FILTER_SSL; // %NAME% of the log files to analyse for insertion
   
-  std::string FILTER_URL1; // First string to search in access_log files
-  std::string FILTER_URL2; // Second string to search in access_log files
+  std::string FILTER_EXTENSION; // Extension to search in (ssl_)access_log files
+  std::string FILTER_URL1; // First string to search in (ssl_)access_log files
+  std::string FILTER_URL2; // Second string to search in (ssl_)access_log files
+  std::string FILTER_URL3; // Third string to search in (ssl_)access_log files
   std::string EXCLUDE_MOD; // Substring of module to exclude from stats
   
   bool COMPRESSION;
