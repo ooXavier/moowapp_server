@@ -149,58 +149,71 @@ string convertDate(string strDate, string format) {
  * \param dst_len Length of the destination buffer.
  */
 static void get_qsvar(const struct mg_request_info *ri,
-                      const char *name, char *dst, size_t dst_len)
+  const char *name, char *dst, size_t dst_len)
 {
   const char *qs = ri->query_string;
   mg_get_var(qs, strlen(qs == NULL ? "" : qs), name, dst, dst_len);
 }
 
-static string get_qsstring(struct mg_connection *conn,
-                         const struct mg_request_info *ri,
-                         const string name)
+static void get_request_params(struct mg_connection *conn,
+  const struct mg_request_info *ri, map<string, string> &mapParams)
 {
-  char *var, *buf;
+  char *buf;
   size_t buf_len;
   const char *cl;
-  int var_len;
   buf_len = 0;
-  var = buf = NULL;
+  buf = NULL;
   cl = mg_get_header(conn, "Content-Length");
   if ((!strcmp(ri->request_method, "POST") || !strcmp(ri->request_method, "PUT")) && cl != NULL) {
-    buf_len = atoi(cl);
-    buf = (char*) malloc(buf_len);
-    /* Read in two pieces, to test continuation */
-    if (buf_len > 2) {
-      mg_read(conn, buf, 2);
-      mg_read(conn, buf + 2, buf_len - 2);
-    } else {
-      mg_read(conn, buf, buf_len);
-    }
+   buf_len = atoi(cl);
+   buf = (char*) malloc(buf_len);
+   /* Read in two pieces, to test continuation */
+   if (buf_len > 2) {
+     mg_read(conn, buf, 2);
+     mg_read(conn, buf + 2, buf_len - 2);
+   } else {
+     mg_read(conn, buf, buf_len);
+   }
   } else if (ri->query_string != NULL) {
-    buf_len = strlen(ri->query_string);
-    buf = (char*) malloc(buf_len + 1);
-    strcpy(buf, ri->query_string);
+   buf_len = strlen(ri->query_string);
+   buf = (char*) malloc(buf_len + 1);
+   strcpy(buf, ri->query_string);
   }
-  var = (char*) malloc(buf_len + 1);
-  var_len = mg_get_var(buf, buf_len, name.c_str(), var, buf_len + 1);
-  //cout << "Value: [" << var << "]" << endl;
-  //cout << "Value size: [" << var_len << "]" << endl;
+  
+  string strBuf = string(buf, buf_len);
+  //cout << "Buffer value: " << strBuf << endl;
+  // Split sequences separated by & ; Ex var1=val1&var2=val2
+  vector<string> vectStrAnd;
+  boost::split(vectStrAnd, strBuf, boost::is_any_of("&"));
+  for(vector<string>::iterator tok_iter = vectStrAnd.begin(); tok_iter != vectStrAnd.end(); ++tok_iter) {
+    size_t found = (*tok_iter).find("=");
+    if (found != string::npos) {
+      // Split sequences separated by = ; Ex: var1=val1
+      vector<string> vectStrEqual;
+      boost::split(vectStrEqual, *tok_iter, boost::is_any_of("="));
+      //cout << "Value for [" << vectStrEqual[0] << "] is [" << vectStrEqual[1] << "]" << endl;
+      mapParams.insert(pair<string, string>(vectStrEqual[0], vectStrEqual[1]));
+    }
+  }
   free(buf);
-  free(var);
-  return string(var);
 }
 
 void filteringPeriod(struct mg_connection *conn, const struct mg_request_info *ri,
-                     int i, string &strYearMonth, set<string> &setDateToKeep)
+  int i, string &strYearMonth, set<string> &setDateToKeep,
+  map<string, string> &mapParams)
 {
   string strAppDays; // Days in the month, starting at 0. Ex: 0-30 or 0-2,4,6-30
   ostringstream oss;
+  map<string, string>::iterator itParam;
   
   // Get periods for that project (filtering)
   oss << "p_" << i << "_d";
-  strAppDays = get_qsstring(conn, ri, oss.str());
+  if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+    strAppDays = itParam->second;
+  } else {
+    strAppDays = "1-31"; // Default value : complete month
+  }
   oss.str("");
-  if (strAppDays.length() == 0) strAppDays = "1-31"; // Default value : complete month
   //if (c.DEBUG_REQUESTS) cout << " days=" << strAppDays;
 
   //-- Store only date to be returned
@@ -234,12 +247,10 @@ void filteringPeriod(struct mg_connection *conn, const struct mg_request_info *r
       
       } else {
         // Single numbers : Ex: 4,6,8
-        try {
-          oss << strYearMonth << std::setw(2) << std::setfill('0') << *tok_iter;
-          //if (c.DEBUG_REQUESTS) cout <<  " Added: " << oss.str();
-          setDateToKeep.insert(oss.str());
-          oss.str("");
-        } catch(boost::bad_lexical_cast &) {}
+        oss << strYearMonth << std::setw(2) << std::setfill('0') << *tok_iter;
+        //if (c.DEBUG_REQUESTS) cout <<  " Added: " << oss.str();
+        setDateToKeep.insert(oss.str());
+        oss.str("");
       }
     }
   }
@@ -276,7 +287,7 @@ static void stats_app_intra(struct mg_connection *conn,
 {
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, offset;
-  unsigned int iVisit, minVisit;
+  unsigned int minVisit;
   ostringstream oss;
   string strMode;        // Mode. Ex: app or all
   string strModules;     // Number of modules. Ex: 4
@@ -291,40 +302,61 @@ static void stats_app_intra(struct mg_connection *conn,
   map<int, string>::iterator itm;
   set<string> setModules, setOtherModules;
   set<string>::iterator its;
-
+  
   //-- Get parameters in request.
-  strMode = get_qsstring(conn, ri, "mode");
-  if(strMode.length() == 0) {
+  map<string, string> mapParams;
+  map<string, string>::iterator itParam;
+  get_request_params(conn, ri, mapParams);
+  
+  //-- Check parameters values
+  if ((itParam = mapParams.find("mode")) != mapParams.end()) {
+    strMode = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
-  } else if (strMode == "all") {
-    strModules = get_qsstring(conn, ri, "apps");
-    getDBModules(setOtherModules);
+  }
+  if (strMode == "all") {
+    if ((itParam = mapParams.find("apps")) != mapParams.end()) {
+      strModules = itParam->second;
+      getDBModules(setOtherModules);
+    } else {
+      mg_printf(conn, "%s", standard_json_reply);
+      mg_printf(conn, "%s", "Missing parameter: apps");
+      return;
+    }
   } else {
-    strModules = get_qsstring(conn, ri, "modules");
+    if ((itParam = mapParams.find("modules")) != mapParams.end()) {
+      strModules = itParam->second;
+    } else {
+      mg_printf(conn, "%s", standard_json_reply);
+      mg_printf(conn, "%s", "Missing parameter: modules");
+      return;
+    }
   }
-  if(strModules.length() == 0) {
-    mg_printf(conn, "%s", standard_json_reply);
-    mg_printf(conn, "%s", "Missing parameter: modules");
-    return;
-  }
-  strDates = get_qsstring(conn, ri, "dates");
-  if(strDates.length() == 0) {
+  if ((itParam = mapParams.find("dates")) != mapParams.end()) {
+    strDates = itParam->second;
+    try {
+      max = boost::lexical_cast<int>(strDates);
+    } catch(boost::bad_lexical_cast &) {}
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: dates");
     return;
   }
-  sscanf(strDates.c_str(), "%d", &max);
-  strOffset = get_qsstring(conn, ri, "offset");
-  if(strOffset.length() == 0) {
+  if ((itParam = mapParams.find("offset")) != mapParams.end()) {
+    strOffset = itParam->second;
+    try {
+      offset = boost::lexical_cast<int>(strOffset);
+    } catch(boost::bad_lexical_cast &) {}
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: offset");
     return;
   }
-  sscanf(strOffset.c_str(), "%d", &offset);
-  strType = get_qsstring(conn, ri, "type");
-  if(strType.length() == 0) {
+  if ((itParam = mapParams.find("type")) != mapParams.end()) {
+    strType = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: type");
     return;
@@ -341,14 +373,14 @@ static void stats_app_intra(struct mg_connection *conn,
   for(i = offset; i < max; i++, ii++) {
     if (ii!=0 && ii%6 == 0) { ii = 0; iii+=10; }
     oss << "d_" << (offset + ii + iii);
-    strDate = get_qsstring(conn, ri, oss.str());
-    oss.str("");
-    if (strDate.length() != 0) {
+    if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+      strDate = itParam->second;
       //cout << "ici: i=" << i << " ii=" << ii << " iii=" << iii << " => " << (offset + ii + iii) << " strDate=" << strDate << endl;
       mg_printf(conn, "\"%d\":\"%s\",", (offset + ii + iii), strDate.c_str()); // Timestamp returned
       
       mapDate.insert( pair<int,string>((offset + ii + iii), convertDate(strDate, "%Y-%m-%d") ) ); // Convert timestamp to Y-m-d
-    }
+    }  
+    oss.str("");
   }
   
   //-- Set Mode and Date in response.
@@ -359,33 +391,46 @@ static void stats_app_intra(struct mg_connection *conn,
   
   //-- Build visits stats in response for each modules.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules.c_str(), "%d", &nbApps);
+  nbApps = 0;
+  try {
+    nbApps = boost::lexical_cast<int>(strModules);
+  } catch(boost::bad_lexical_cast &) {}
   if (c.DEBUG_REQUESTS) cout << "stats_app_intra - with " << nbApps << flush;
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
     if (strMode == "all") {
       oss << "p_" << i;
-      strApplication = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        strApplication = itParam->second;
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strApplication.length() == 0) continue;
       if (c.DEBUG_REQUESTS && i==0) cout << " apps." << endl;
 
       // Get nb module of that app in request
+      nbModules = 0;
       oss << "m_" << i;
-      strModules = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        try {
+          nbModules = boost::lexical_cast<int>(itParam->second);
+        } catch(boost::bad_lexical_cast &) {}
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strModules.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app " << strApplication << " [" << flush;
 
       // Loop to put modules from request in a set
       setModules.clear();
-      
-      sscanf(strModules.c_str(), "%d", &nbModules);
       for(j = 0; j < nbModules; j++) {
         oss << "m_" << i << "_" << j;
-        strModule = get_qsstring(conn, ri, oss.str());
+        if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+          strModule = itParam->second;
+        } else {
+          continue;
+        }
         oss.str("");
-        if (strModule.length() == 0) continue;
         if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
         setModules.insert(strModule);
 
@@ -402,14 +447,12 @@ static void stats_app_intra(struct mg_connection *conn,
           oss << *its << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;
           // Search Key (oss) in DB
           visit = dbw_get(db, oss.str());
-          iVisit = 0;
           if (visit.length() > 0) {
             // Update nb visit of the app for this day
-            sscanf(visit.c_str(), "%d", &iVisit);
-            minVisit += iVisit;
+            minVisit += boost::lexical_cast<int>(visit);
           }
           // Return last nb visit
-          //if (c.DEBUG_REQUESTS && strcmp("xxx", strApplication)==0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit << endl; 
+          //if (c.DEBUG_REQUESTS && strcmp("xxx", strApplication)==0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << boost::lexical_cast<int>(visit) << endl; 
           oss.str("");
         }  
         mapResMod.insert(pair<int, int>((*itm).first, minVisit));
@@ -418,12 +461,15 @@ static void stats_app_intra(struct mg_connection *conn,
       vRes.push_back(make_pair(strApplication, mapResMod));
     }
     else {
-      if (c.DEBUG_REQUESTS && i==0) cout << " modules in app." << endl;
+      if (c.DEBUG_REQUESTS && i==0) cout << " module(s) in app." << endl;
       oss << "m_" << i;
-      strModule = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        strModule = itParam->second;
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strModule.length() == 0) continue;
-      if (c.DEBUG_REQUESTS) cout << " - module=" << strModule << endl;
+      if (c.DEBUG_REQUESTS) cout << "- module=" << strModule << endl;
       
       //-- and each dates.
       for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
@@ -436,9 +482,10 @@ static void stats_app_intra(struct mg_connection *conn,
         int iVisit = 0;
         if (visit.length() > 0) {
           // Update nb visit of the app for this day
-          sscanf(visit.c_str(), "%d", &iVisit);
+          iVisit = boost::lexical_cast<int>(visit);
         }
         // Return nb visit
+        //if (c.DEBUG_REQUESTS) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << boost::lexical_cast<int>(visit) << endl; 
         mapResMod.insert(pair<int, int>((*itm).first, iVisit));
       }
       vRes.push_back(make_pair(strModule, mapResMod));
@@ -459,14 +506,12 @@ static void stats_app_intra(struct mg_connection *conn,
         oss << *its << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
-        iVisit = 0;
         if (visit.length() > 0) {
           // Update nb visit of the app for this day
-          sscanf(visit.c_str(), "%d", &iVisit);
-          minVisit += iVisit;
+          minVisit += boost::lexical_cast<int>(visit);
         }
         // Return last nb visit
-        //if (c.DEBUG_REQUESTS && strcmp("xxx", strApplication)==0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit << endl; 
+        //if (c.DEBUG_REQUESTS && strcmp("xxx", strApplication)==0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << boost::lexical_cast<int>(visit) << endl; 
         oss.str("");
       }
       if (c.DEBUG_APP_OTHERS && itm == mapDate.begin()) cout << endl;
@@ -523,33 +568,51 @@ static void stats_app_day(struct mg_connection *conn,
   set<string> setModules, setOtherModules;
   set<string>::iterator it;
   unsigned int nbVisitForApp;
-
+  
   //-- Get parameters in request.
-  strMode = get_qsstring(conn, ri, "mode");
-  if(strMode.length() == 0) {
+  map<string, string> mapParams;
+  map<string, string>::iterator itParam;
+  get_request_params(conn, ri, mapParams);
+  
+  //-- Check parameters values
+  if ((itParam = mapParams.find("mode")) != mapParams.end()) {
+    strMode = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
   }
   if (strMode == "all") {
-    strModules = get_qsstring(conn, ri, "apps");
-    getDBModules(setOtherModules);
+    if ((itParam = mapParams.find("apps")) != mapParams.end()) {
+      strModules = itParam->second;
+      getDBModules(setOtherModules);
+    } else {
+      mg_printf(conn, "%s", standard_json_reply);
+      mg_printf(conn, "%s", "Missing parameter: apps");
+      return;
+    }
   } else {
-    strModules = get_qsstring(conn, ri, "modules");
+    if ((itParam = mapParams.find("modules")) != mapParams.end()) {
+      strModules = itParam->second;
+    } else {
+      mg_printf(conn, "%s", standard_json_reply);
+      mg_printf(conn, "%s", "Missing parameter: modules");
+      return;
+    }
   }
-  if(strModules.length() == 0) {
-    mg_printf(conn, "%s", standard_json_reply);
-    mg_printf(conn, "%s", "Missing parameter: modules");
-    return;
-  }
-  strDates = get_qsstring(conn, ri, "dates");
-  if(strDates.length() == 0) {
+  if ((itParam = mapParams.find("dates")) != mapParams.end()) {
+    strDates = itParam->second;
+    try {
+      max = boost::lexical_cast<int>(strDates);
+    } catch(boost::bad_lexical_cast &) {}
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: dates");
     return;
   }
-  strType = get_qsstring(conn, ri, "type");
-  if(strType.length() == 0) {
+  if ((itParam = mapParams.find("type")) != mapParams.end()) {
+    strType = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: type");
     return;
@@ -560,16 +623,15 @@ static void stats_app_day(struct mg_connection *conn,
   is_jsonp = handle_jsonp(conn, ri);
   mg_printf(conn, "%s", "[{");
   
-  //-- Set each date in response.
   i = 0;
-  sscanf(strDates.c_str(), "%d", &max);
   for(max += i; i < max; i++) {
     oss << "d_" << i;
-    strDate = get_qsstring(conn, ri, oss.str());
-    oss.str("");
-    if (strDate.length() != 0) {
+    if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+      strDate = itParam->second;
+      //-- Set each date to according offset in response.
       mg_printf(conn, "\"%d\":\"%s\",", i, strDate.c_str());
     }
+    oss.str("");
   }
   
   //-- Set Mode and Date in response.
@@ -581,33 +643,46 @@ static void stats_app_day(struct mg_connection *conn,
   
   //-- Build visits stats in response for each modules or app.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules.c_str(), "%d", &nbApps);
+  nbApps = 0;
+  try {
+    nbApps = boost::lexical_cast<int>(strModules);
+  } catch(boost::bad_lexical_cast &) {}
   if (c.DEBUG_REQUESTS) cout << "stats_app_day - with " << nbApps << flush;
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
     if (strMode == "all") {
       oss << "p_" << i;
-      strApplication = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        strApplication = itParam->second;
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strApplication.length() == 0) continue;
       if (c.DEBUG_REQUESTS && i==0) cout << " apps." << endl;
 
       // Get nb module of that app in request
+      nbModules = 0;
       oss << "m_" << i;
-      strModules = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        try {
+          nbModules = boost::lexical_cast<int>(itParam->second);
+        } catch(boost::bad_lexical_cast &) {}
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strModules.length() == 0) continue;
-      if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app " << strApplication << " [" << flush;
+      if (c.DEBUG_REQUESTS) cout << " with " << nbModules << " modules in app " << strApplication << " [" << flush;
 
       // Loop to put modules from request in a set
       setModules.clear();
-      
-      sscanf(strModules.c_str(), "%d", &nbModules);
       for(j = 0; j < nbModules; j++) {
         oss << "m_" << i << "_" << j;
-        strModule = get_qsstring(conn, ri, oss.str());
+        if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+          strModule = itParam->second;
+        } else {
+          continue;
+        }
         oss.str("");
-        if (strModule.length() == 0) continue;
         if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
         setModules.insert(strModule);
 
@@ -627,11 +702,11 @@ static void stats_app_day(struct mg_connection *conn,
           visit = dbw_get(db, oss.str());
           iVisit = 0;
           if (visit.length() > 0) {
-            sscanf(visit.c_str(), "%d", &iVisit);
+            iVisit = boost::lexical_cast<int>(visit);
             //if (*it == "bureau") cout << oss.str() << " = " << iVisit << endl;
           }
           int timeVal = 0;
-          sscanf(dbTimes[l].c_str(), "%d", &timeVal);
+          timeVal = boost::lexical_cast<int>(dbTimes[l]);
           if (floor(timeVal/10) == k) {
             hourVisit += iVisit;
           } else {
@@ -653,9 +728,12 @@ static void stats_app_day(struct mg_connection *conn,
     else {
       if (c.DEBUG_REQUESTS && i==0) cout << " modules in app." << endl;
       oss << "m_" << i;
-      strModule = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        strModule = itParam->second;
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strModule.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << " - module=" << strModule;
     
       //-- Get nb visit from DB
@@ -668,11 +746,11 @@ static void stats_app_day(struct mg_connection *conn,
         visit = dbw_get(db, oss.str());
         iVisit = 0;
         if (visit.length() > 0) {
-          sscanf(visit.c_str(), "%d", &iVisit);
+          iVisit = boost::lexical_cast<int>(visit);
           ////if (c.DEBUG_REQUESTS) cout << oss.str() << " = " << iVisit << endl;
         }
         int timeVal = 0;
-        sscanf(dbTimes[l].c_str(), "%d", &timeVal);
+        timeVal = boost::lexical_cast<int>(dbTimes[l]);
         if (floor(timeVal/10) == k) {
           hourVisit += iVisit;
           ////cout << "hourVisit=" << hourVisit << endl;
@@ -703,18 +781,16 @@ static void stats_app_day(struct mg_connection *conn,
     //-- Get nb visit from DB
     for(int l = k = 0, max=DB_TIMES_SIZE;l<max;l++) {
       int timeVal = 0;
-      sscanf(dbTimes[l].c_str(), "%d", &timeVal);
+      timeVal = boost::lexical_cast<int>(dbTimes[l]);
       for(it=setOtherModules.begin(), nbVisitForApp = 0; it!=setOtherModules.end(); it++) {
         if (c.DEBUG_APP_OTHERS && l == 0) cout << *it << ", ";
         // Build Key ex: "creer_modifier_retrocession/1/2011-04-24/150";
         oss << *it << '/' << strType << "/" << strDateFormated << '/' << timeVal;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
-        iVisit = 0;
         if (visit.length() > 0) {
-          sscanf(visit.c_str(), "%d", &iVisit);
-          nbVisitForApp += iVisit;
-          ////if (c.DEBUG_APP_OTHERS && *it == "bureau") cout << oss.str() << " = " << iVisit << endl;
+          nbVisitForApp += boost::lexical_cast<int>(visit);
+          ////if (c.DEBUG_APP_OTHERS && *it == "bureau") cout << oss.str() << " = " << boost::lexical_cast<int>(visit) << endl;
         }
         oss.str("");
       }
@@ -777,39 +853,59 @@ static void stats_app_week(struct mg_connection *conn,
   unsigned int nbVisitForApp;
 
   //-- Get parameters in request.
-  strMode = get_qsstring(conn, ri, "mode");
-  if(strMode.length() == 0) {
+  map<string, string> mapParams;
+  map<string, string>::iterator itParam;
+  get_request_params(conn, ri, mapParams);
+  
+  //-- Check parameters values
+  if ((itParam = mapParams.find("mode")) != mapParams.end()) {
+    strMode = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
   }
   if (strMode == "all") {
-    strModules = get_qsstring(conn, ri, "apps");
-    getDBModules(setOtherModules);
+    if ((itParam = mapParams.find("apps")) != mapParams.end()) {
+      strModules = itParam->second;
+      getDBModules(setOtherModules);
+    } else {
+      mg_printf(conn, "%s", standard_json_reply);
+      mg_printf(conn, "%s", "Missing parameter: apps");
+      return;
+    }
   } else {
-    strModules = get_qsstring(conn, ri, "modules");
+    if ((itParam = mapParams.find("modules")) != mapParams.end()) {
+      strModules = itParam->second;
+    } else {
+      mg_printf(conn, "%s", standard_json_reply);
+      mg_printf(conn, "%s", "Missing parameter: modules");
+      return;
+    }
   }
-  if(strModules.length() == 0) {
-    mg_printf(conn, "%s", standard_json_reply);
-    mg_printf(conn, "%s", "Missing parameter: modules");
-    return;
-  }
-  strDates = get_qsstring(conn, ri, "dates");
-  if(strDates.length() == 0) {
+  if ((itParam = mapParams.find("dates")) != mapParams.end()) {
+    strDates = itParam->second;
+    try {
+      max = boost::lexical_cast<int>(strDates);
+    } catch(boost::bad_lexical_cast &) {}
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: dates");
     return;
   }
-  sscanf(strDates.c_str(), "%d", &max);
-  strOffset = get_qsstring(conn, ri, "offset");
-  if(strOffset.length() == 0) {
+  if ((itParam = mapParams.find("offset")) != mapParams.end()) {
+    strOffset = itParam->second;
+    try {
+      offset = boost::lexical_cast<int>(strOffset);
+    } catch(boost::bad_lexical_cast &) {}
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: offset");
     return;
   }
-  sscanf(strOffset.c_str(), "%d", &offset);
-  strType = get_qsstring(conn, ri, "type");
-  if(strType.length() == 0) {
+  if ((itParam = mapParams.find("type")) != mapParams.end()) {
+    strType = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: type");
     return;
@@ -820,21 +916,23 @@ static void stats_app_week(struct mg_connection *conn,
   is_jsonp = handle_jsonp(conn, ri);
   mg_printf(conn, "%s", "[{");
   
-  //-- Set each date to according offset in response.
+  //-- Create a set for the Dates to loop easily
   max += offset;
   for(i = offset; i < max; i++) {
     oss << "d_" << i;
-    strDate = get_qsstring(conn, ri, oss.str());
-    oss.str("");
-    if (strDate.length() != 0) {
+    if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+      strDate = itParam->second;
+      //-- Set each date to according offset in response.
       mg_printf(conn, "\"%d\":\"%s\",", i, strDate.c_str());
-      
       // Convert timestamp to Y-m-d
-      boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
-      boost::gregorian::date d = pt.date();
-      date = boost::gregorian::to_iso_extended_string(d);
-      setDate.insert(date);
+      try {
+        boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
+        boost::gregorian::date d = pt.date();
+        date = boost::gregorian::to_iso_extended_string(d);
+        setDate.insert(date);
+      } catch(boost::bad_lexical_cast &) {}
     }
+    oss.str("");
   }
   
   //-- Save Year-Month for later
@@ -847,35 +945,49 @@ static void stats_app_week(struct mg_connection *conn,
   
   //-- Build visits stats in response for each modules.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules.c_str(), "%d", &nbApps);
+  nbApps = 0;
+  try {
+    nbApps = boost::lexical_cast<int>(strModules);
+  } catch(boost::bad_lexical_cast &) {}
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
     if (strMode == "all") {
       oss << "p_" << i;
-      strApplication = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        strApplication = itParam->second;
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strApplication.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << "stats_app_week - app=" << strApplication;
       
       //-- Filter for days
       set<string> setDateToKeep;
-      filteringPeriod(conn, ri, i, strYearMonth, setDateToKeep);
+      filteringPeriod(conn, ri, i, strYearMonth, setDateToKeep, mapParams);
       
       // Get nb module of that app in request
+      nbModules = 0;
       oss << "m_" << i;
-      strModules = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        try {
+          nbModules = boost::lexical_cast<int>(itParam->second);
+        } catch(boost::bad_lexical_cast &) {}
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strModules.length() == 0) continue;
-      if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app [" << flush;
+      if (c.DEBUG_REQUESTS) cout << " with " << nbModules << " modules in app [" << flush;
       
       // Loop to put modules from request in a set
       setModules.clear();
-      sscanf(strModules.c_str(), "%d", &nbModules);
       for(j = 0; j < nbModules; j++) {
         oss << "m_" << i << "_" << j;
-        strModule = get_qsstring(conn, ri, oss.str());
+        if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+          strModule = itParam->second;
+        } else {
+          continue;
+        }
         oss.str("");
-        if (strModule.length() == 0) continue;
         if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
         setModules.insert(strModule);
         
@@ -885,7 +997,9 @@ static void stats_app_week(struct mg_connection *conn,
       if (c.DEBUG_REQUESTS) cout << "]" << endl;
         
       //-- and loop for each dates.
-      sscanf(strOffset.c_str(), "%d", &j);
+      try {
+        j = boost::lexical_cast<int>(strOffset);
+      } catch(boost::bad_lexical_cast &) {}
       for(it=setDate.begin(); it!=setDate.end(); j++) {
         nbVisitForApp = 0;
         // If *it is not in setDateToKeep, return 0 values
@@ -899,11 +1013,11 @@ static void stats_app_week(struct mg_connection *conn,
             // Search Key (oss) in DB
             visit = dbw_get(db, oss.str());
             oss.str("");
-            int iVisit = 0;
             if (visit.length() > 0) {
               // Update nb visit of the app for this day
-              sscanf(visit.c_str(), "%d", &iVisit);
-              nbVisitForApp += iVisit;
+              try {
+                nbVisitForApp += boost::lexical_cast<int>(visit);
+              } catch(boost::bad_lexical_cast &) {}
             }
           }
         }
@@ -911,23 +1025,25 @@ static void stats_app_week(struct mg_connection *conn,
         it++;
         
         // Return nb visit
-        ///if (nbVisitForApp != 0){
-          mapResMod.insert(pair<int, int>(j, nbVisitForApp));
-        ///}
+        mapResMod.insert(pair<int, int>(j, nbVisitForApp));
       }
       
       vRes.push_back(make_pair(strApplication, mapResMod));
     }
     else {
       oss << "m_" << i;
-      strModule = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        strModule = itParam->second;
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strDate.length() == 0) continue;
-      
       if (c.DEBUG_REQUESTS) cout << "stats_app_week: " << strModule << endl;
     
       //-- and each dates.
-      sscanf(strOffset.c_str(), "%d", &j);
+      try {
+        j = boost::lexical_cast<int>(strOffset);
+      } catch(boost::bad_lexical_cast &) {}
       for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
         //-- Get nb visit from DB
         // Build Key ex: "creer_modifier_retrocession/2011-04-24";
@@ -941,7 +1057,9 @@ static void stats_app_week(struct mg_connection *conn,
         oss.str("");
       
         // Return nb visit
-        mapResMod.insert(pair<int, int>(j, boost::lexical_cast<int>(visit)));
+        try {
+          mapResMod.insert(pair<int, int>(j, boost::lexical_cast<int>(visit)));
+        } catch(boost::bad_lexical_cast &) {}
       }
       vRes.push_back(make_pair(strModule, mapResMod));
     }
@@ -952,7 +1070,9 @@ static void stats_app_week(struct mg_connection *conn,
     map<int, int> mapResMod;
     if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
     
-    sscanf(strOffset.c_str(), "%d", &j);
+    try {
+      j = boost::lexical_cast<int>(strOffset);
+    } catch(boost::bad_lexical_cast &) {}
     for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
       for(itt=setOtherModules.begin(), nbVisitForApp = 0; itt!=setOtherModules.end(); itt++) {
         //-- Get nb visit from DB
@@ -961,11 +1081,11 @@ static void stats_app_week(struct mg_connection *conn,
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         oss.str("");
-        int iVisit = 0;
         if (visit.length() > 0) {
           // Update nb visit of the app for this day
-          sscanf(visit.c_str(), "%d", &iVisit);
-          nbVisitForApp += iVisit;
+          try {
+            nbVisitForApp += boost::lexical_cast<int>(visit);
+          } catch(boost::bad_lexical_cast &) {}
         }
         
         if (c.DEBUG_APP_OTHERS && it==setDate.begin()) cout << *itt << ", ";
@@ -1022,41 +1142,61 @@ static void stats_app_month(struct mg_connection *conn,
   set<string> setDate, setModules, setOtherModules;
   set<string>::iterator it, itt;
   unsigned int nbVisitForApp;
-
+  
   //-- Get parameters in request.
-  strMode = get_qsstring(conn, ri, "mode");
-  if(strMode.length() == 0) {
+  map<string, string> mapParams;
+  map<string, string>::iterator itParam;
+  get_request_params(conn, ri, mapParams);
+  
+  //-- Check parameters values
+  if ((itParam = mapParams.find("mode")) != mapParams.end()) {
+    strMode = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
   }
   if (strMode == "all") {
-    strModules = get_qsstring(conn, ri, "apps");
-    getDBModules(setOtherModules);
+    if ((itParam = mapParams.find("apps")) != mapParams.end()) {
+      strModules = itParam->second;
+      getDBModules(setOtherModules);
+    } else {
+      mg_printf(conn, "%s", standard_json_reply);
+      mg_printf(conn, "%s", "Missing parameter: apps");
+      return;
+    }
   } else {
-    strModules = get_qsstring(conn, ri, "modules");
+    if ((itParam = mapParams.find("modules")) != mapParams.end()) {
+      strModules = itParam->second;
+    } else {
+      mg_printf(conn, "%s", standard_json_reply);
+      mg_printf(conn, "%s", "Missing parameter: modules");
+      return;
+    }
   }
-  if(strModules.length() == 0) {
-    mg_printf(conn, "%s", standard_json_reply);
-    mg_printf(conn, "%s", "Missing parameter: modules");
-    return;
-  }
-  strDates = get_qsstring(conn, ri, "dates");
-  if(strDates.length() == 0) {
+  if ((itParam = mapParams.find("dates")) != mapParams.end()) {
+    strDates = itParam->second;
+    try {
+      max = boost::lexical_cast<int>(strDates);
+    } catch(boost::bad_lexical_cast &) {}
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: dates");
     return;
   }
-  sscanf(strDates.c_str(), "%d", &max);
-  strOffset = get_qsstring(conn, ri, "offset");
-  if(strOffset.length() == 0) {
+  if ((itParam = mapParams.find("offset")) != mapParams.end()) {
+    strOffset = itParam->second;
+    try {
+      offset = boost::lexical_cast<int>(strOffset);
+    } catch(boost::bad_lexical_cast &) {}
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: offset");
     return;
   }
-  sscanf(strOffset.c_str(), "%d", &offset);
-  strType = get_qsstring(conn, ri, "type");
-  if(strType.length() == 0) {
+  if ((itParam = mapParams.find("type")) != mapParams.end()) {
+    strType = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: type");
     return;
@@ -1073,17 +1213,19 @@ static void stats_app_month(struct mg_connection *conn,
   max += offset;
   for(i = offset; i < max; i++) {
     oss << "d_" << i;
-    strDate = get_qsstring(conn, ri, oss.str());
-    oss.str("");
-    if (strDate.length() != 0) {
-      // Convert timestamp to Y-m-d
-      boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
-      boost::gregorian::date d = pt.date();
-      date = boost::gregorian::to_iso_extended_string(d);
-      setDate.insert(date);
+    if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+      strDate = itParam->second;
       //-- Set each date to according offset in response.
       mg_printf(conn, "\"%d\":\"%s\",", i, strDate.c_str());
-    }
+      // Convert timestamp to Y-m-d
+      try {
+        boost::posix_time::ptime pt = boost::posix_time::from_time_t(boost::lexical_cast<time_t> (strDate));
+        boost::gregorian::date d = pt.date();
+        date = boost::gregorian::to_iso_extended_string(d);
+        setDate.insert(date);
+      } catch(boost::bad_lexical_cast &) {}
+    }  
+    oss.str("");
   }
   
   //-- Save Year-Month for later
@@ -1096,35 +1238,49 @@ static void stats_app_month(struct mg_connection *conn,
   
   //-- Build visits stats in response for each modules or app.
   vector< pair<string, map<int, int> > > vRes;
-  sscanf(strModules.c_str(), "%d", &nbApps);
+  nbApps = 0;
+  try {
+    nbApps = boost::lexical_cast<int>(strModules);
+  } catch(boost::bad_lexical_cast &) {}
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
     if (strMode == "all") {
       oss << "p_" << i;
-      strApplication = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        strApplication = itParam->second;
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strApplication.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << "stats_app_month - app=" << strApplication;
       
       //-- Filter for days
       set<string> setDateToKeep;
-      filteringPeriod(conn, ri, i, strYearMonth, setDateToKeep);
+      filteringPeriod(conn, ri, i, strYearMonth, setDateToKeep, mapParams);
       
       // Get nb module of that app in request
+      nbModules = 0;
       oss << "m_" << i;
-      strModules = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        try {
+          nbModules = boost::lexical_cast<int>(itParam->second);
+        } catch(boost::bad_lexical_cast &) {}
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strModules.length() == 0) continue;
-      if (c.DEBUG_REQUESTS) cout << " with " << strModules << " modules in app [" << flush;
+      if (c.DEBUG_REQUESTS) cout << " with " << nbModules << " modules in app [" << flush;
       
       // Loop to put modules from request in a set
       setModules.clear();
-      sscanf(strModules.c_str(), "%d", &nbModules);
       for(j = 0; j < nbModules; j++) {
         oss << "m_" << i << "_" << j;
-        strModule = get_qsstring(conn, ri, oss.str());
+        if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+          strModule = itParam->second;
+        } else {
+          continue;
+        }
         oss.str("");
-        if (strModule.length() == 0) continue;
         if (c.DEBUG_REQUESTS) cout << strModule << ", " << flush;
         setModules.insert(strModule);
         
@@ -1134,7 +1290,8 @@ static void stats_app_month(struct mg_connection *conn,
       if (c.DEBUG_REQUESTS) cout << "]" << endl;
         
       //-- and loop for each dates.
-      sscanf(strOffset.c_str(), "%d", &j);
+      j = boost::lexical_cast<int>(strOffset);
+      //sscanf(strOffset.c_str(), "%d", &j);
       for(it=setDate.begin(); it!=setDate.end(); j++) {
         nbVisitForApp = 0;
         // If *it is not in setDateToKeep, return 0 values
@@ -1148,11 +1305,9 @@ static void stats_app_month(struct mg_connection *conn,
             // Search Key (oss) in DB
             visit = dbw_get(db, oss.str());
             oss.str("");
-            int iVisit = 0;
             if (visit.length() > 0) {
               // Update nb visit of the app for this day
-              sscanf(visit.c_str(), "%d", &iVisit);
-              nbVisitForApp += iVisit;
+              nbVisitForApp += boost::lexical_cast<int>(visit);
             }
           }
         }
@@ -1169,13 +1324,16 @@ static void stats_app_month(struct mg_connection *conn,
     }
     else {
       oss << "m_" << i;
-      strModule = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        strModule = itParam->second;
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strModule.length() == 0) continue;
       if (c.DEBUG_REQUESTS) cout << "stats_app_month - module=" << strModule << endl;
       
       //-- and each dates.
-      sscanf(strOffset.c_str(), "%d", &j);
+      j = boost::lexical_cast<int>(strOffset);
       for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
         //-- Get nb visit from DB
         // Build Key ex: "creer_modifier_retrocession/1/2011-04-24";
@@ -1201,7 +1359,7 @@ static void stats_app_month(struct mg_connection *conn,
     map<int, int> mapResMod;
     if (c.DEBUG_APP_OTHERS) cout << "Others modules: " << flush;
     
-    sscanf(strOffset.c_str(), "%d", &j);
+    j = boost::lexical_cast<int>(strOffset);
     for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
       for(itt=setOtherModules.begin(), nbVisitForApp = 0; itt!=setOtherModules.end(); itt++) {
         //-- Get nb visit from DB
@@ -1210,11 +1368,9 @@ static void stats_app_month(struct mg_connection *conn,
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         oss.str("");
-        int iVisit = 0;
         if (visit.length() > 0) {
           // Update nb visit of the app for this day
-          sscanf(visit.c_str(), "%d", &iVisit);
-          nbVisitForApp += iVisit;
+          nbVisitForApp += boost::lexical_cast<int>(visit);
         }
         
         if (c.DEBUG_APP_OTHERS && it==setDate.begin()) cout << *itt << ", ";
@@ -1254,48 +1410,54 @@ static void stats_app_month(struct mg_connection *conn,
  * \param request_info Information about HTTP request.
  */
 static void stats_modules_list(struct mg_connection *conn,
-                            const struct mg_request_info *ri)
+                               const struct mg_request_info *ri)
 {
   bool is_jsonp;
-  int i, nbModules;
-  string strModules; // Number of modules. Ex: 4
+  int i, nbModules;  // Number of modules. Ex: 4
   string strModule;  // Modules name. Ex: module_test_1
-  string strMode;    // Mode. Ex: other or all
+  string strMode;    // Mode. Ex: grouped or all
   ostringstream oss;
   set<string> setModules;
   set<string>::iterator it;
 
   //-- Get parameters in request.
-  strMode = get_qsstring(conn, ri, "mode");
-  if(strMode.length() == 0) {
+  map<string, string> mapParams;
+  map<string,string>::iterator itParam;
+  get_request_params(conn, ri, mapParams);
+  
+  //-- Check parameters values
+  if ((itParam = mapParams.find("mode")) != mapParams.end()) {
+    strMode = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mode");
     return;
-  } else if (strMode == "all") {
+  }
+  if (strMode == "all") {
     getDBModules(setModules);
     if (c.DEBUG_REQUESTS) cout << "stats_modules_list - all";
-  } else if (strMode == "other") {
-    strModules = get_qsstring(conn, ri, "modules");
-    if(strModules.length() == 0) {
+  } else if (strMode == "grouped") {
+    if ((itParam = mapParams.find("modules")) != mapParams.end()) {
+      try {
+        nbModules = boost::lexical_cast<int>(itParam->second);
+      } catch(boost::bad_lexical_cast &) {}
+    } else {
       mg_printf(conn, "%s", standard_json_reply);
       mg_printf(conn, "%s", "Missing parameter: modules");
       return;
     }
     getDBModules(setModules); // Get all modules
     
-    if (c.DEBUG_REQUESTS) cout << "stats_modules_list - other with " << strModules << " modules known." << endl << "Unknown are :" << endl;
-    
-    // Loop to put modules from request in a set
-    sscanf(strModules.c_str(), "%d", &nbModules);
+    // Loop to remove modules from request of the set
     for(i = 0; i < nbModules; i++) {
       oss << "m_" << i;
-      strModule = get_qsstring(conn, ri, oss.str());
+      if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
+        // Remove this module from the OTHERS list
+        setModules.erase(itParam->second);
+      } else {
+        continue;
+      }
       oss.str("");
-      if (strModule.length() == 0) continue;
-      if (c.DEBUG_REQUESTS) cout << strModule << endl;
-      
-      // Remove this module from the OTHERS list
-      setModules.erase(strModule);
     }
   }
   
@@ -1328,7 +1490,7 @@ static void stats_modules_list(struct mg_connection *conn,
  * \param request_info Information about HTTP request.
  */
 static void stats_admin_list_mergemodules(struct mg_connection *conn,
-                            const struct mg_request_info *ri)
+                                          const struct mg_request_info *ri)
 {
   bool is_jsonp;
   
@@ -1356,25 +1518,31 @@ static void stats_admin_list_mergemodules(struct mg_connection *conn,
  * \param request_info Information about HTTP request.
  */
 static void stats_admin_do_mergemodules(struct mg_connection *conn,
-                            const struct mg_request_info *ri)
+                                        const struct mg_request_info *ri)
 {
-  char strModule[65];  // Modules name. Ex: module_test_1
-  string module, moduleMerge;
+  string strModule; // Modules name. Ex: module_test_1
+  string moduleMerge;
   
   //-- Get parameters in request.
-  module = get_qsstring(conn, ri, "module");
-  if(module.length() == 0) {
+  map<string, string> mapParams;
+  map<string,string>::iterator itParam;
+  get_request_params(conn, ri, mapParams);
+  
+  //-- Get parameters in request.
+  if ((itParam = mapParams.find("module")) != mapParams.end()) {
+    strModule = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: module");
     return;
   }
-  moduleMerge = get_qsstring(conn, ri, "mergein");
-  if(moduleMerge.length() == 0) {
+  if ((itParam = mapParams.find("mergein")) != mapParams.end()) {
+    moduleMerge = itParam->second;
+  } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: mergein");
     return;
   }
-  moduleMerge = string(strModule);
   
   /*set<string> setModules;
   set<string>::iterator it;
