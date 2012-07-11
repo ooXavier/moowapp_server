@@ -1556,6 +1556,7 @@ static void stats_admin_list_mergemodules(struct mg_connection *conn,
  *
  * \param conn Opaque connection handler.
  * \param request_info Information about HTTP request.
+ * \example http://localhost:9999/stats_admin_do_mergemodules?module=webapptodelete&mergein=uselessfornow
  */
 static void stats_admin_do_mergemodules(struct mg_connection *conn,
                                         const struct mg_request_info *ri)
@@ -1585,19 +1586,38 @@ static void stats_admin_do_mergemodules(struct mg_connection *conn,
     return;
   }
   
+  set<string>::iterator it;
   set<string> setToBeDeleted;
   setToBeDeleted.insert(strModule);
   //cout << "Delete: " << strModule << endl;
   removeDBModules(setToBeDeleted);
   
+  //-- Construct response
+  string response = "\"delete\": \"" + strModule + "\"";
+  
+  // Update list of deleted modules in DB
+  set<string> setDeletedModules;
+  string strDeletedModules = dbw_get(db, "modules-deleted");
+  if (strDeletedModules.length() > 0) {
+    boost::split(setDeletedModules, strDeletedModules, boost::is_any_of("/"));
+    setDeletedModules.erase(""); // Delete empty module
+  }
+  for(it=setToBeDeleted.begin(); it!=setToBeDeleted.end(); it++) {
+    setDeletedModules.insert(*it);
+  }
+    
+  strDeletedModules = "";
+  for(it=setDeletedModules.begin(); it!=setDeletedModules.end(); it++) {
+    strDeletedModules += *it + "/";
+  }
+  dbw_remove(db, "modules-deleted");
+  dbw_add(db, "modules-deleted", strDeletedModules);
+  response +=", \"modules-deleted\": \""+ dbw_get(db, "modules-deleted") +"\"";
   
   //-- Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
   is_jsonp = handle_jsonp(conn, ri);
   mg_write(conn, "[{", 2);
-  
-  //-- Construct response
-  string response = "\"delete\": \"" + strModule + "\"";
   
   //-- Set end JSON string in response.
   response += "}]";
