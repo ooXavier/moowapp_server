@@ -33,17 +33,17 @@
 #include "mongoose.h"
 
 using namespace std;
-Db *db = NULL;
-Config c; //-- Read configuration file
-boost::mutex mutex; // Mutex for thread blocking
-struct mg_context *ctx;
-bool quit;
+Db *db = NULL;          //!< DB pointer
+Config c;               //!< Read configuration file
+boost::mutex mutex;     //!< Mutex for thread blocking
+struct mg_context *ctx; //!< Pointer of request's context 
+bool quit;              //!< Boolean used to quit server properly
 
 /*!
  * \fn int getDBModules(set<string> &setModules)
  * \brief Return a set of web modules stored in DB.
  *
- * \param setModules A set to store the web modules names.
+ * \param[in, out] setModules A set to store the web modules names.
  */
 int getDBModules(set<string> &setModules) {
   //-- Create a set of all known applications in DB
@@ -73,7 +73,7 @@ int getDBModules(set<string> &setModules) {
  * \fn int removeDBModules(set<string> &setDeleteModules)
  * \brief Remove some modules from DB storage.
  *
- * \param setDeleteModules A set of modules to be deleted from DB storage.
+ * \param[in, out] setDeleteModules A set of modules to be deleted from DB storage.
  */
 int removeDBModules(set<string> &setDeleteModules) {
   //-- Create a set of all known applications in DB
@@ -110,12 +110,12 @@ int removeDBModules(set<string> &setDeleteModules) {
 }
 
 /*!
- * \fn void statsAddSumRow(vector< pair<string, map<int, int> > > &vRes, int setDateSize)
+ * \fn void statsAddSumRow(vector< pair<string, map<int, int> > > &vRes, int nbResWithOffset, int offset)
  * \brief Insert in front of the vector in param, a SUM of visits by days
  *
- * \param vRes The vector where the SUM will be added.
- * \param nbResWithOffset A number of days
- * \param offset A number of stating day for the answer
+ * \param[in, out] vRes The vector where the SUM will be added.
+ * \param[in] nbResWithOffset A number of days
+ * \param[in] offset A number of stating day for the answer
  */
 void statsAddSumRow(vector< pair<string, map<int, int> > > &vRes, int nbResWithOffset, int offset) {
   map<int, int>::iterator itMap;
@@ -139,8 +139,8 @@ void statsAddSumRow(vector< pair<string, map<int, int> > > &vRes, int nbResWithO
  * \fn void statsConstructResponse(vector< pair<string, map<int, int> > > &vRes, string &response)
  * \brief Return a JSON part string of the content of a vector of stats.
  *
- * \param vRes The vector of all stats grouped by module and stored by day.
- * \param response Response string in JSON format (only part of JSON answer will be returned). Should by empty at call.
+ * \param[in, out] vRes The vector of all stats grouped by module and stored by day.
+ * \param[in, out] response Response string in JSON format (only part of JSON answer will be returned). Should by empty at call.
  */
 void statsConstructResponse(vector< pair<string, map<int, int> > > &vRes, string &response) {
   map<int, int>::iterator itMap;
@@ -162,8 +162,8 @@ void statsConstructResponse(vector< pair<string, map<int, int> > > &vRes, string
  * \fn void convertDate(string strDate, string format)
  * \brief Convert a string date from timestamp format to an other format (such as Y-M-D...).
  *
- * \param strDate Date to extract as string. Ex: 1314253853 or Thursday 25 November
- * \param format New format for date.
+ * \param[in] strDate Date to extract as string. Ex: 1314253853 or Thursday 25 November
+ * \param[in] format New format for date.
  */
 string convertDate(string strDate, string format) {
   istringstream ss;
@@ -180,24 +180,28 @@ string convertDate(string strDate, string format) {
 }
 
 /*!
- * \fn static void get_qsvar(const struct mg_request_info *request_info, const char *name, char *dst, size_t dst_len)
+ * \fn void get_qsvar(const struct mg_request_info *ri, const char *name, char *dst, size_t dst_len)
  * \brief Get a value of particular form variable.
  *
- * \param request_info Information about HTTP request.
- * \param name Variable name to decode from the buffer.
- * \param dst Destination buffer for the decoded variable.
- * \param dst_len Length of the destination buffer.
+ * \param[in] request_info Information about HTTP request.
+ * \param[in] name Variable name to decode from the buffer.
+ * \param[in] dst Destination buffer for the decoded variable.
+ * \param[in] dst_len Length of the destination buffer.
  */
-static void get_qsvar(const struct mg_request_info *ri,
-  const char *name, char *dst, size_t dst_len)
-{
+void get_qsvar(const struct mg_request_info *ri, const char *name, char *dst, size_t dst_len) {
   const char *qs = ri->query_string;
   mg_get_var(qs, strlen(qs == NULL ? "" : qs), name, dst, dst_len);
 }
 
-static void get_request_params(struct mg_connection *conn,
-  const struct mg_request_info *ri, map<string, string> &mapParams)
-{
+/*!
+ * \fn void get_request_params(struct mg_connection *conn, const struct mg_request_info *ri, map<string, string> &mapParams)
+ * \brief Put all request parameters into a map.
+ *
+ * \param[in] conn Opaque connection handler.
+ * \param[in] ri Information about HTTP request.
+ * \param[in, out] mapParams Length of the destination buffer.
+ */
+void get_request_params(struct mg_connection *conn, const struct mg_request_info *ri, map<string, string> &mapParams) {
   char *buf;
   size_t buf_len;
   const char *cl;
@@ -238,10 +242,18 @@ static void get_request_params(struct mg_connection *conn,
   free(buf);
 }
 
-void filteringPeriod(struct mg_connection *conn, const struct mg_request_info *ri,
-  int i, string &strYearMonth, set<string> &setDateToKeep,
-  map<string, string> &mapParams)
-{
+/*!
+ * \fn void filteringPeriod(struct mg_connection *conn, const struct mg_request_info *ri, int i, string &strYearMonth, set<string> &setDateToKeep, map<string, string> &mapParams)
+ * \brief Return a set of web modules stored in DB.
+ *
+ * \param[in] conn A set to store the web modules names.
+ * \param[in] ri A set to store the web modules names.
+ * \param[in] i A set to store the web modules names.
+ * \param[in, out] strYearMonth A set to store the web modules names.
+ * \param[in, out] setDateToKeep A set to store the web modules names.
+ * \param[in, out] mapParams A set to store the web modules names.
+ */
+void filteringPeriod(struct mg_connection *conn, const struct mg_request_info *ri, int i, string &strYearMonth, set<string> &setDateToKeep, map<string, string> &mapParams) {
   string strAppDays; // Days in the month, starting at 0. Ex: 0-30 or 0-2,4,6-30
   ostringstream oss;
   map<string, string>::iterator itParam;
@@ -297,16 +309,14 @@ void filteringPeriod(struct mg_connection *conn, const struct mg_request_info *r
 }
 
 /*!
- * \fn static bool handle_jsonp(struct mg_connection *conn, const struct mg_request_info *request_info)
+ * \fn bool handle_jsonp(struct mg_connection *conn, const struct mg_request_info *request_info)
  * \brief Tell if the request is a JSON call
  *
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
  * \return true if "callback" param is present in query string, false otherwise.
  */
-static bool handle_jsonp(struct mg_connection *conn,
-                        const struct mg_request_info *request_info)
-{
+bool handle_jsonp(struct mg_connection *conn, const struct mg_request_info *request_info) {
   char cb[64];
   get_qsvar(request_info, "callback", cb, sizeof(cb));
   if (cb[0] != '\0') {
@@ -316,15 +326,14 @@ static bool handle_jsonp(struct mg_connection *conn,
 }
 
 /*!
- * \fn static void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \fn void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *ri)
  * \brief Build an HTTP response for the /stats_app_intra context.
  *
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
+ * \example http://localhost:9999/stats_app_intra
  */
-static void stats_app_intra(struct mg_connection *conn,
-                            const struct mg_request_info *ri)
-{
+void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *ri) {
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, offset;
   unsigned int minVisit;
@@ -584,15 +593,14 @@ static void stats_app_intra(struct mg_connection *conn,
 }
 
 /*!
- * \fn static void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \fn void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
  * \brief Build an HTTP response for the /stats_app_day context.
  *
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
+ * \example http://localhost:9999/stats_app_day
  */
-static void stats_app_day(struct mg_connection *conn,
-                            const struct mg_request_info *ri)
-{
+void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri) {
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, k;
   unsigned int iVisit, hourVisit;
@@ -867,15 +875,14 @@ static void stats_app_day(struct mg_connection *conn,
 }
 
 /*!
- * \fn static void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \fn void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri)
  * \brief Build an HTTP response for the /stats_app_week context.
  *
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
+ * \example http://localhost:9999/stats_app_week
  */
-static void stats_app_week(struct mg_connection *conn,
-                            const struct mg_request_info *ri)
-{
+void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri) {
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, offset;
   string strDates;   // Number of dates. Ex: 31
@@ -1158,15 +1165,14 @@ static void stats_app_week(struct mg_connection *conn,
 }
 
 /*!
- * \fn static void stats_app_month(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \fn void stats_app_month(struct mg_connection *conn, const struct mg_request_info *ri)
  * \brief Build an HTTP response for the /stats_app_month context.
  *
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
+ * \example http://localhost:9999/stats_app_month
  */
-static void stats_app_month(struct mg_connection *conn,
-                            const struct mg_request_info *ri)
-{
+void stats_app_month(struct mg_connection *conn, const struct mg_request_info *ri) {
   bool is_jsonp;
   int i, j, max, nbApps, nbModules, offset;
   string strDates;   // Number of dates. Ex: 31
@@ -1443,15 +1449,14 @@ static void stats_app_month(struct mg_connection *conn,
 }
 
 /*!
- * \fn static void stats_modules_list(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \fn void stats_modules_list(struct mg_connection *conn, const struct mg_request_info *ri)
  * \brief Build an HTTP response for the /stats_modules_list context.
  *
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
+ * \example http://localhost:9999/stats_modules_list
  */
-static void stats_modules_list(struct mg_connection *conn,
-                               const struct mg_request_info *ri)
-{
+void stats_modules_list(struct mg_connection *conn, const struct mg_request_info *ri) {
   bool is_jsonp;
   int i, nbModules;  // Number of modules. Ex: 4
   string strModule;  // Modules name. Ex: module_test_1
@@ -1523,15 +1528,14 @@ static void stats_modules_list(struct mg_connection *conn,
 }
 
 /*!
- * \fn static void stats_admin_list_mergemodules(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \fn void stats_admin_list_mergemodules(struct mg_connection *conn, const struct mg_request_info *ri)
  * \brief List modules marked as to be merged in the stats for the next vacation
  *
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
+ * \example http://localhost:9999/stats_admin_list_mergemodules
  */
-static void stats_admin_list_mergemodules(struct mg_connection *conn,
-                                          const struct mg_request_info *ri)
-{
+void stats_admin_list_mergemodules(struct mg_connection *conn, const struct mg_request_info *ri) {
   bool is_jsonp;
   
   //-- Set begining JSON string in response.
@@ -1551,16 +1555,14 @@ static void stats_admin_list_mergemodules(struct mg_connection *conn,
 }
 
 /*!
- * \fn static void stats_admin_do_mergemodules(struct mg_connection *conn, const struct mg_request_info *ri)
+ * \fn void stats_admin_do_mergemodules(struct mg_connection *conn, const struct mg_request_info *ri)
  * \brief Mark two modules to be merged in the stats for each days collected in the next vacation
  *
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
  * \example http://localhost:9999/stats_admin_do_mergemodules?module=webapptodelete&mergein=uselessfornow
  */
-static void stats_admin_do_mergemodules(struct mg_connection *conn,
-                                        const struct mg_request_info *ri)
-{
+void stats_admin_do_mergemodules(struct mg_connection *conn, const struct mg_request_info *ri) {
   bool is_jsonp;
   string strModule; // Modules name. Ex: module_test_1
   string moduleMerge;
@@ -1628,21 +1630,25 @@ static void stats_admin_do_mergemodules(struct mg_connection *conn,
 }
 
 /*!
- * \fn static void get_error(struct mg_connection *conn, const struct mg_request_info *request_info)
+ * \fn void get_error(struct mg_connection *conn, const struct mg_request_info *request_info)
  * \brief Build an HTTP error response.
  *
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
+ * \example http://localhost:9999/error
  */
-static void get_error(struct mg_connection *conn,
-                      const struct mg_request_info *request_info)
-{
+void get_error(struct mg_connection *conn, const struct mg_request_info *request_info) {
   mg_printf(conn, "HTTP/1.1 %d XX\r\n"
             "Connection: close\r\n\r\n", request_info->status_code);
   mg_printf(conn, "Error: [%d]", request_info->status_code);
 }
 
-static const struct uri_config {
+/*!
+ * \struct uri_config
+ * \brief Object for each requests to handle by the web server.
+ *
+ */
+const struct uri_config {
   enum mg_event event;
   const char *uri;
   void (*func)(struct mg_connection *, const struct mg_request_info *);
@@ -1659,17 +1665,14 @@ static const struct uri_config {
 };
 
 /*!
- * \fn static void *callback(enum mg_event event, struct mg_connection *conn, const struct mg_request_info *request_info)
+ * \fn void *callback(enum mg_event event, struct mg_connection *conn, const struct mg_request_info *request_info)
  * \brief Call the right function depending on the request context.
  *
- * \param event Which event has been triggered.
- * \param conn Opaque connection handler.
- * \param request_info Information about HTTP request.
+ * \param[in] event Which event has been triggered.
+ * \param[in] conn Opaque connection handler.
+ * \param[in] request_info Information about HTTP request.
  */
-static void *callback(enum mg_event event,
-                      struct mg_connection *conn,
-                      const struct mg_request_info *request_info)
-{
+void *callback(enum mg_event event, struct mg_connection *conn, const struct mg_request_info *request_info) {
   int i;
 
   for (i = 0; uri_config[i].uri != NULL; i++) {
@@ -1684,10 +1687,10 @@ static void *callback(enum mg_event event,
 }
 
 /*!
- * \fn void compressionThread()
+ * \fn void compressionThread(const Config c)
  * \brief Compress the stats DB at a precise time once a day until 7 day from today.
  *
- * \param c Config file.
+ * \param[in] c Config object.
  */
 void compressionThread(const Config c) {
   uint64_t i;
@@ -1817,11 +1820,11 @@ void compressionThread(const Config c) {
 }
 
 /*!
- * \fn void readLogThread(const Config c)
+ * \fn void readLogThread(const Config c, unsigned long readPos)
  * \brief Do a continuous read of a file and call the line analyser.
  *
- * \param c Config file containing the path/name of file to read.
- * \param readPos Position in file to read (default: 0).
+ * \param[in] c Config object containing the path/name of file to read.
+ * \param[in] readPos Position in file to read (default: 0).
  */
 void readLogThread(const Config c, unsigned long readPos) {
   string data;
@@ -1904,12 +1907,18 @@ void readLogThread(const Config c, unsigned long readPos) {
  * \fn void handler_function(int signum)
  * \brief Handler to close properly db and threads.
   *
- * \param signum Signal to catch
+ * \param[in] signum Signal to catch
  */
 void handler_function(int signum) {
   quit = true;
 }
 
+/*!
+ * \fn int main (int argc, char* argv[])
+ * \brief Main server function.
+ *
+ * \return EXIT_SUCCESS Full stop of the server.
+ */
 int main(int argc, char* argv[]) {
   boost::thread cThread, rThread;
   
@@ -1981,5 +1990,5 @@ int main(int argc, char* argv[]) {
   }
   cout << "Good bye." << endl;
   
-  return 0;
+  return EXIT_SUCCESS;
 }

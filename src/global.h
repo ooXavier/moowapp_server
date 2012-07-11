@@ -1,3 +1,9 @@
+/*!
+ * \file global.h
+ * \brief global static datas for mooWApp
+ * \author Xavier ETCHEBER
+ */
+
 #ifndef MOOWAPP_STATS_GLOBAL_H_
 #define MOOWAPP_STATS_GLOBAL_H_
 
@@ -10,6 +16,10 @@ static const char *standard_json_reply = "HTTP/1.1 200 OK\r\n"
   "X-Powered-By: IHM-Stat-Server\r\n"
   "Connection: close\r\n\r\n";
 
+/*!
+ * \def DB_TIMES_SIZE 144
+ * \brief Size of dbTimes.
+ */
 #define DB_TIMES_SIZE 144
 
 static const std::string dbTimes [DB_TIMES_SIZE] = { "0","1","2","3","4","5","10","11","12","13","14","15",

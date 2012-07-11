@@ -8,7 +8,6 @@
 #include <string>
 #include <vector> // Splited string
 #include <set> // Set of modules
-//#include <fstream> // ifstream
 
 // Boost
 #include <boost/algorithm/string.hpp> // Split
@@ -27,6 +26,14 @@
 
 using namespace std;
 
+/*!
+ * \fn bool analyseLine(Config c, const string line, set<string> &setModules)
+ * \brief Convert a line of a log file to a new row of visit in stat DB (or do a +1 on an existing line).
+ *
+ * \param[in] c Config object.
+ * \param[in] line to be analysed.
+ * \param[in, out] setModules set of modules to be updated with the visit inserted in DB.
+ */
 bool analyseLine(Config c, const string line, set<string> &setModules) {
   if (line.length() < 10) return false; // Line not long enough : error
   SslLog logLine;
@@ -71,13 +78,13 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   boost::split(strs, line, boost::is_any_of(" "));
   
   // First data is a true IP with Boost
-  ///boost::system::error_code ec;
-  ///boost::asio::ip::address::from_string(strs[0], ec);
-  ///if (ec) return false;
+  //boost::system::error_code ec;
+  //boost::asio::ip::address::from_string(strs[0], ec);
+  //if (ec) return false;
   
   // Get Date
-  ///char s_date[12];
-  ///sprintf(s_date, "%d/%s/%d", day, month, year);
+  //char s_date[12];
+  //sprintf(s_date, "%d/%s/%d", day, month, year);
   vector<string> datev;
   string ds = strs[3].substr(1, strs[3].length());
   boost::split(datev, ds, boost::is_any_of(":"));
@@ -85,7 +92,7 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   boost::date_time::format_date_parser<boost::gregorian::date, char> parser(format, std::locale("C"));
   boost::date_time::special_values_parser<boost::gregorian::date, char> svp;
   boost::gregorian::date d = parser.parse_date(datev[0], format, svp);
-  ///boost::gregorian::date d (year, month, day);///= parser.parse_date(s_date, format, svp);///datev[0], format, svp);
+  //boost::gregorian::date d (year, month, day);///= parser.parse_date(s_date, format, svp);///datev[0], format, svp);
   logLine.date_d = to_iso_extended_string(d); // Save date to YYYY-MM-DD with zeros
   
   // Get Time
@@ -96,13 +103,13 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   boost::spirit::karma::generate(std::back_inserter(logLine.date_t), boost::spirit::karma::int_, (iHour*10) + floor(iMin/10)); // Convert float addition to string
   
   // Get Module
-  ///string strUrl(url);
-  ///size_t slash = strUrl.find("/", 1);
+  //string strUrl(url);
+  //size_t slash = strUrl.find("/", 1);
   size_t slash = strs[6].find("/", 1);
   if (slash == string::npos) return false;
-  ///logLine.app = strUrl.substr(1, slash-1);
+  //logLine.app = strUrl.substr(1, slash-1);
   logLine.app = strs[6].substr(1, slash-1);
-  ///if (c.DEBUG_LOGS) cout << "> Url: " << strUrl;
+  //if (c.DEBUG_LOGS) cout << "> Url: " << strUrl;
   if (c.DEBUG_LOGS) cout << "> Url: " << strs[6];
   /*if (strs[9] == "-") {
     logLine.responseSize = "0";
@@ -139,6 +146,15 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   return true;
 }
 
+/*!
+ * \fn unsigned long readLogFile(Config c, const string strFile, set<string> &setModules, unsigned long readPos)
+ * \brief Read a log file and analyse every line starting at a specified position.
+ *
+ * \param[in] c Config object.
+ * \param[in] strFile.
+ * \param[in, out] setModules set of modules.
+ * \param[in] readPos.
+ */
 unsigned long readLogFile(Config c, const string strFile, set<string> &setModules, unsigned long readPos) {
   char * buffer;
   unsigned long size, lSize;

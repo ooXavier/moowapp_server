@@ -7,3 +7,4 @@ bin/moowapp_insert
 bin/moowapp_server
 configuration.ini
 bin/mwa.*
+docs/
