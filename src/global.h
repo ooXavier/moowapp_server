@@ -32,4 +32,7 @@ static const std::string dbTimes [DB_TIMES_SIZE] = { "0","1","2","3","4","5","10
   "200","201","202","203","204","205","210","211","212","213","214","215","220","221","222","223","224","225",
   "230","231","232","233","234","235"};
 
+static const std::string KEY_MODULES("modules");
+static const std::string KEY_DELETED_MODULES("modules-deleted");
+
 #endif // MOOWAPP_STATS_GLOBAL_H_

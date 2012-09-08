@@ -47,3 +47,9 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 - Version currently running for 6 months now on a server AIX 5.3 TL12
 - Add a startup script
 - Refactor folders
+
+### V0.2.2
+- Manage request by POST & GET
+
+### V0.2.3
+- Add administrative functions : list webapps, merge webapps stats

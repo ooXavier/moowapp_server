@@ -15,8 +15,7 @@
 
 using namespace std;
 
-Db * dbw_open(Db *db_, const char *basedir)
-{
+Db * dbw_open(Db *db_, const char *basedir) {
   try {
     // Redirect debugging information to std::cerr
     db_->set_error_stream(&cerr);
@@ -41,8 +40,7 @@ Db * dbw_open(Db *db_, const char *basedir)
   return db_;
 }
 
-string dbw_get(Db *db, string strKey)
-{
+string dbw_get(Db *db, string strKey) {
   Dbt key(const_cast<char*>(strKey.data()), strKey.size());
   Dbt data;
   
@@ -61,8 +59,7 @@ string dbw_get(Db *db, string strKey)
   }
 }
 
-/*vector< pair<string, string> > dbw_get_all(struct nessDB *db)
-{
+/*vector< pair<string, string> > dbw_get_all(struct nessDB *db) {
   vector< pair<string, string> > v;
   uint64_t i, keys = 0;
   dbLine *myDb = db_get_all(db, &keys);
@@ -85,8 +82,7 @@ int dbw_add(Db *db, string strKey, string strValue)
   return false;
 }
 
-void dbw_remove(Db *db, string strKey)
-{
+void dbw_remove(Db *db, string strKey) {
   Dbt key(&strKey, strKey.size());
   if (db->del(NULL, &key, 0))
     return;
@@ -95,15 +91,13 @@ void dbw_remove(Db *db, string strKey)
   return;
 }
 
-void dbw_flush(Db *db)
-{
+void dbw_flush(Db *db) {
   // Flush data
   if (db->sync(0) != 0)
     cout << "DB Flush failed" << endl;
 }
 
-void dbw_compact(Db *db)
-{
+void dbw_compact(Db *db) {
   // Compact db 
   if (db->compact(NULL, NULL, NULL, NULL, DB_FREE_SPACE, NULL) != 0)
     cout << "DB Compaction failed" << endl;
@@ -111,8 +105,7 @@ void dbw_compact(Db *db)
   //TODO: Add a configuration variable to do either a simple compact() taskor a delete/full re-insert
 }
 
-void dbw_close(Db *db)
-{
+void dbw_close(Db *db) {
   try {
     if (db != NULL) {
       // Close the db
@@ -127,7 +120,6 @@ void dbw_close(Db *db)
   }
 }
 
-void dbw_drop(const char *basedir)
-{
+void dbw_drop(const char *basedir) {
   //db_drop(basedir);
 }

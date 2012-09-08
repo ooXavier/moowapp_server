@@ -49,4 +49,10 @@
  * - Version currently running for 6 months now on a server AIX 5.3 TL12
  * - Add a startup script
  * - Refactor folders
+ *
+ * \subsection sec_022 V0.2.2
+ * - Manage request by POST & GET
+ *
+ * \subsection sec_023 V0.2.3
+ * - Add administrative functions : list webapps, merge webapps stats
  */
