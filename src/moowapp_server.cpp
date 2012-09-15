@@ -1684,9 +1684,9 @@ const struct uri_config {
  *
  * \param[in] event Which event has been triggered.
  * \param[in] conn Opaque connection handler.
- * \param[in] request_info Information about HTTP request.
  */
-void *callback(enum mg_event event, struct mg_connection *conn, const struct mg_request_info *request_info) {
+void *callback(enum mg_event event, struct mg_connection *conn) {
+  const struct mg_request_info *request_info = mg_get_request_info(conn);
   int i;
 
   for (i = 0; uri_config[i].uri != NULL; i++) {
