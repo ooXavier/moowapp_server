@@ -10,7 +10,7 @@
 static const std::string format("%d/%b/%Y");
 
 static const char *standard_json_reply = "HTTP/1.1 200 OK\r\n"
-  "Content-Type: application/x-javascript; charset=UTF-8\r\n"
+  "Content-Type: application/json; charset=utf-8\r\n"
   "Cache: no-cache\r\n"
   "Access-Control-Allow-Origin: *\r\n"
   "X-Powered-By: IHM-Stat-Server\r\n"

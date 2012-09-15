@@ -57,8 +57,8 @@ Config::Config(string cfgFile) {
   DEBUG_REQUESTS = (mapConf.find("DEBUG_REQUESTS") != mapConf.end()) ? (mapConf["DEBUG_REQUESTS"] == "true") ? true : false : false;
   DEBUG_APP_OTHERS = (mapConf.find("DEBUG_APP_OTHERS") != mapConf.end()) ? (mapConf["DEBUG_APP_OTHERS"] == "true") ? true : false : false;
   
-  DB_PATH   = (mapConf.find("DB_PATH") != mapConf.end()) ? mapConf["DB_PATH"] : "/data/nessDB";
-  DB_BUFFER = (1024*1024*2);
+  DB_PATH   = (mapConf.find("DB_PATH") != mapConf.end()) ? mapConf["DB_PATH"] : "/data/";
+  DB_NAME   = (mapConf.find("DB_NAME") != mapConf.end()) ? mapConf["DB_NAME"] : "storage.db";
   FILTER_PATH = (mapConf.find("FILTER_PATH") != mapConf.end()) ? mapConf["FILTER_PATH"] : ".";
   FILTER_SSL = (mapConf.find("FILTER_SSL") != mapConf.end()) ? mapConf["FILTER_SSL"] : "access.log";
   FILTER_EXTENSION = (mapConf.find("FILTER_EXTENSION") != mapConf.end()) ? mapConf["FILTER_EXTENSION"] : ".do";

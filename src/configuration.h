@@ -22,7 +22,7 @@ public:
   bool DEBUG_APP_OTHERS; //!< Log apps
   
   std::string DB_PATH; //!< PATH to db's folder
-  int DB_BUFFER; //!< maximum size of db to store in memory
+  std::string DB_NAME; //!< Name of db file
   
   std::string FILTER_PATH; //!< %PATH% of the log files to analyse for insertion
   std::string FILTER_SSL; //!< %NAME% of the log files to analyse for insertion

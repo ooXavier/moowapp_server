@@ -27,8 +27,7 @@ int main(int argc, char* argv[]) {
   Config c;
   
   // open the database
-  Db db_(NULL, 0);
-  db = dbw_open(&db_, c.DB_PATH.c_str());
+  db = dbw_open(c.DB_PATH, c.DB_NAME);
   if (db == NULL) {
     cout << "DB not opened. Exit program." << endl;
     return 1;
