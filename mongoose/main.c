@@ -1,4 +1,4 @@
-// Copyright (c) 2004-2009 Sergey Lyubka
+// Copyright (c) 2004-2011 Sergey Lyubka
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -54,6 +54,7 @@
 #endif // _WIN32
 
 #define MAX_OPTIONS 40
+#define MAX_CONF_FILE_LINE_SIZE (8 * 1024)
 
 static int exit_flag;
 static char server_name[40];        // Set by init_server_name()
@@ -89,19 +90,20 @@ static void show_usage_and_exit(void) {
   const char **names;
   int i;
 
-  fprintf(stderr, "Mongoose version %s (c) Sergey Lyubka\n", mg_version());
+  fprintf(stderr, "Mongoose version %s (c) Sergey Lyubka, built %s\n",
+          mg_version(), __DATE__);
   fprintf(stderr, "Usage:\n");
   fprintf(stderr, "  mongoose -A <htpasswd_file> <realm> <user> <passwd>\n");
   fprintf(stderr, "  mongoose <config_file>\n");
   fprintf(stderr, "  mongoose [-option value ...]\n");
-  fprintf(stderr, "OPTIONS:\n");
+  fprintf(stderr, "\nOPTIONS:\n");
 
   names = mg_get_valid_option_names();
   for (i = 0; names[i] != NULL; i += 3) {
     fprintf(stderr, "  -%s %s (default: \"%s\")\n",
             names[i], names[i + 1], names[i + 2] == NULL ? "" : names[i + 2]);
   }
-  fprintf(stderr, "See  http://code.google.com/p/mongoose/wiki/MongooseManual"
+  fprintf(stderr, "\nSee  http://code.google.com/p/mongoose/wiki/MongooseManual"
           " for more details.\n");
   fprintf(stderr, "Example:\n  mongoose -s cert.pem -p 80,443s -d no\n");
   exit(EXIT_FAILURE);
@@ -154,7 +156,7 @@ static void set_option(char **options, const char *name, const char *value) {
 }
 
 static void process_command_line_arguments(char *argv[], char **options) {
-  char line[512], opt[512], val[512], *p;
+  char line[MAX_CONF_FILE_LINE_SIZE], opt[sizeof(line)], val[sizeof(line)], *p;
   FILE *fp = NULL;
   size_t i, cmd_line_opts_start = 1, line_no = 0;
 
@@ -211,8 +213,16 @@ static void process_command_line_arguments(char *argv[], char **options) {
 }
 
 static void init_server_name(void) {
-  snprintf(server_name, sizeof(server_name), "Mongoose web server v.%s",
+  snprintf(server_name, sizeof(server_name), "Mongoose web server v. %s",
            mg_version());
+}
+
+static void *mongoose_callback(enum mg_event ev, struct mg_connection *conn) {
+  if (ev == MG_EVENT_LOG) {
+    printf("%s\n", mg_get_request_info(conn)->log_message);
+  }
+
+  return NULL;
 }
 
 static void start_mongoose(int argc, char *argv[]) {
@@ -241,15 +251,13 @@ static void start_mongoose(int argc, char *argv[]) {
   signal(SIGINT, signal_handler);
 
   /* Start Mongoose */
-  ctx = mg_start(NULL, NULL, (const char **) options);
+  ctx = mg_start(&mongoose_callback, NULL, (const char **) options);
   for (i = 0; options[i] != NULL; i++) {
     free(options[i]);
   }
 
   if (ctx == NULL) {
-    die("%s", "Failed to start Mongoose. Maybe some options are "
-        "assigned bad values?\nTry to run with '-e error_log.txt' "
-        "and check error_log.txt for more information.");
+    die("%s", "Failed to start Mongoose.");
   }
 }
 
@@ -420,9 +428,9 @@ static LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam,
                    service_installed ? "" : "not");
           AppendMenu(hMenu, MF_STRING | MF_GRAYED, ID_SEPARATOR, buf);
           AppendMenu(hMenu, MF_STRING | (service_installed ? MF_GRAYED : 0),
-                     ID_INSTALL_SERVICE, "Install");
+                     ID_INSTALL_SERVICE, "Install service");
           AppendMenu(hMenu, MF_STRING | (!service_installed ? MF_GRAYED : 0),
-                     ID_REMOVE_SERVICE, "Deinstall");
+                     ID_REMOVE_SERVICE, "Deinstall service");
           AppendMenu(hMenu, MF_SEPARATOR, ID_SEPARATOR, "");
           AppendMenu(hMenu, MF_STRING, ID_EDIT_CONFIG, "Edit config file");
           AppendMenu(hMenu, MF_STRING, ID_QUIT, "Exit");
@@ -434,6 +442,11 @@ static LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam,
           break;
       }
       break;
+    case WM_CLOSE:
+      mg_stop(ctx);
+      Shell_NotifyIcon(NIM_DELETE, &TrayIcon);
+      PostQuitMessage(0);
+      return 0;  // We've just sent our own quit message, with proper hwnd.
   }
 
   return DefWindowProc(hWnd, msg, wParam, lParam);
@@ -465,10 +478,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
   TrayIcon.uCallbackMessage = WM_USER;
   Shell_NotifyIcon(NIM_ADD, &TrayIcon);
 
-  while (GetMessage(&msg, hWnd, 0, 0)) {
+  while (GetMessage(&msg, hWnd, 0, 0) > 0) {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
+
+  return msg.wParam;
 }
 #else
 int main(int argc, char *argv[]) {

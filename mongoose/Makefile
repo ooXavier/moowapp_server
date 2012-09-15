@@ -22,10 +22,11 @@ all:
 ###                 UNIX build: linux, bsd, mac, rtems
 ##########################################################################
 
-CFLAGS=		-W -Wall -std=c99 -pedantic -O2 $(COPT)
-MAC_SHARED=	-flat_namespace -bundle -undefined suppress
-LINFLAGS=	-ldl -pthread $(CFLAGS)
-LIB=		_$(PROG).so
+CFLAGS = -W -Wall -std=c99 -pedantic -O2 $(COPT)
+MAC_SHARED = -flat_namespace -bundle -undefined suppress
+LINFLAGS = -ldl -pthread $(CFLAGS)
+LIB = _$(PROG).so
+#CC = g++
 
 # Make sure that the compiler flags come last in the compilation string.
 # If not so, this can break some on some Linux distros which use
@@ -139,7 +140,7 @@ do_test:
 	perl test/test.pl $(TEST)
 
 release: clean
-	F=mongoose-`perl -lne '/define\s+MONGOOSE_VERSION\s+"(\S+)"/ and print $$1' mongoose.c`.tgz ; cd .. && tar --exclude \*.hg --exclude \*.svn --exclude \*.swp --exclude \*.nfs\* -czf x mongoose && mv x mongoose/$$F
+	F=mongoose-`perl -lne '/define\s+MONGOOSE_VERSION\s+"(\S+)"/ and print $$1' mongoose.c`.tgz ; cd .. && tar -czf x mongoose/{LICENSE,Makefile,bindings,examples,test,win32,mongoose.c,mongoose.h,mongoose.1,main.c} && mv x mongoose/$$F
 
 clean:
 	rm -rf *.o *.core $(PROG) *.obj *.so $(PROG).txt *.dSYM *.tgz
