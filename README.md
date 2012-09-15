@@ -53,3 +53,4 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 
 ### V0.2.3
 - Add administrative functions : list webapps, merge webapps stats
+- Fix #1, error on concurrent requests
