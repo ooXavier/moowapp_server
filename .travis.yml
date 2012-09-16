@@ -7,7 +7,7 @@ language:
 compiler:
   - gcc
 before_install:
-  - sudo apt-get update
-  - sudo apt-get install libboost1.50-all-dev
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq libboost-all-dev
 script:
   - mkdir bin && make && make -f MakefileInsert
