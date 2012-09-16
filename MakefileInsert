@@ -1,9 +1,9 @@
 CC=g++
-BOOST=/opt/local
-DATABASE=/Users/Xavier/DEVz/C++/BerkeleyDB.5.3
+BOOST=/usr
+DATABASE=/usr
 CFLAGS=-c -O2 -Wall -I$(BOOST)/include -I$(DATABASE)/include
 LDFLAGS=-L$(DATABASE)/lib -L$(BOOST)/lib
-LIBS=-lboost_system-mt -lboost_thread-mt -lboost_filesystem-mt -lboost_program_options-mt -lboost_iostreams-mt -lboost_date_time-mt -lboost_regex-mt -ldb_cxx-5.3
+LIBS=-lboost_system-mt -lboost_thread-mt -lboost_filesystem-mt -lboost_program_options-mt -lboost_iostreams-mt -lboost_date_time-mt -lboost_regex-mt -ldb_cxx-5.1
 SOURCES=src/configuration.cpp src/log_reader.cpp src/db_access_berkeleydb.cpp src/moowapp_insert.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=bin/moowapp_insert
