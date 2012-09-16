@@ -8,6 +8,8 @@
 # Web Statistics DB Server aka : mooWApp
 By 2011-2012 ooXavier
 
+[![Build Status](https://secure.travis-ci.org/ooXavier/moowapp_server.png)](http://travis-ci.org/ooXavier/moowapp_server)
+
 ## Typical usage
 Count visits for certains URLs each day and let the stats be accessible thru an Intranet / Internet.
 
