@@ -7,8 +7,8 @@
 #include <string>
 #include <vector> // Vector of strings
 #include <stdint.h> // uint64_t
- #include <string.h> // memset
- #include <stdlib.h> // free
+#include <string.h> // memset
+#include <stdlib.h> // free
  
 // database
 #include <db_cxx.h>
