@@ -2,7 +2,7 @@
  * \file moowapp_server.cpp
  * \brief Web Statistics DB Server aka : mooWApp
  * \author Xavier ETCHEBER
- * \version 0.2.3
+ * \version 0.3.x
  */
 
 #include <iostream>
@@ -12,6 +12,8 @@
 #include <set>
 #include <vector> // Line log analyse
 #include <signal.h> // Handler for Ctrl+C
+#include <stdio.h> // sscanf
+#include <time.h> // localtime, strftime
 
 // Boost
 #include <boost/progress.hpp> // Timing system
@@ -1974,7 +1976,7 @@ int main(int argc, char* argv[]) {
   /// Stop properly
   now = time(0); // Get date
   timeinfo = localtime(&now);
-  strftime (buffer, 80, "%c", timeinfo);
+  strftime(buffer, 80, "%c", timeinfo);
   cout << buffer << ". Stoping server... " << flush;
   mg_stop(ctx);
   cout << "done" << endl << "Stoping LOG Thread... " << flush;

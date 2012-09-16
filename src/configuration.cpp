@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 #include <map> // Conf info
+#include <stdio.h> // fopen, fgets, fclose, sscanf
 
 #include "global.h"
 #include "configuration.h"

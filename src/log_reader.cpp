@@ -8,6 +8,7 @@
 #include <string>
 #include <vector> // Splited string
 #include <set> // Set of modules
+#include <stdio.h> // fopen, fseek, ftell, fclose, sscanf, sprintf
 
 // Boost
 #include <boost/algorithm/string.hpp> // Split
