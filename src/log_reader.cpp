@@ -104,13 +104,9 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   boost::spirit::karma::generate(std::back_inserter(logLine.date_t), boost::spirit::karma::int_, (iHour*10) + floor(iMin/10)); // Convert float addition to string
   
   // Get Module
-  //string strUrl(url);
-  //size_t slash = strUrl.find("/", 1);
   size_t slash = strs[6].find("/", 1);
   if (slash == string::npos) return false;
-  //logLine.app = strUrl.substr(1, slash-1);
   logLine.app = strs[6].substr(1, slash-1);
-  //if (c.DEBUG_LOGS) cout << "> Url: " << strUrl;
   if (c.DEBUG_LOGS) cout << "> Url: " << strs[6];
   /*if (strs[9] == "-") {
     logLine.responseSize = "0";
@@ -137,7 +133,7 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
     val = "1";
     if (c.DEBUG_LOGS) cout << " Set to 1 " << endl;
     
-    // Add module in list if not exist
+    /// Add module in list if not exist
     setModules.insert(logLine.app);
   }
   
@@ -165,26 +161,25 @@ unsigned long readLogFile(Config c, const string strFile, set<string> &setModule
     return 0;
   }
   
-  // obtain file size:
+  /// obtain file size:
   fseek (pFile, 0, SEEK_END);
   lSize = ftell (pFile);
   if (lSize == readPos) {
     fclose (pFile);
-    ////cout << ". Already at end of file." << flush;
     return lSize;
   }
   lSize -= readPos;
   fseek(pFile, readPos, SEEK_SET);
 
-  // allocate memory to contain the file:
+  /// allocate memory to contain the file:
   buffer = (char*) malloc (sizeof(char) * lSize);
   if (buffer == NULL) {cerr << endl << "Memory error" << endl; return 0;}
 
-  // copy the file into the memory buffer:
+  /// copy the file into the memory buffer:
   size_t result = fread (buffer, 1, lSize, pFile);
   if (result != lSize) {cerr << endl << "Reading error" << endl; return 0;}
   
-  // all of the data has been read; close the file.
+  /// all of the data has been read; close the file.
   size = ftell(pFile);
   fclose (pFile);
 
@@ -204,8 +199,6 @@ unsigned long readLogFile(Config c, const string strFile, set<string> &setModule
     }
   }
   free (buffer);
-  
-  /////cout << ". Visits inserted: " << myI << " from " << i << " lines." << flush;
   
   return size;
 }
