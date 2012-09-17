@@ -71,7 +71,7 @@ string dbw_get(Db *db, const string strKey, const int flags) {
   try {
     /// Get value from DB
     if (db->get(NULL, &key, &data, 0) != DB_NOTFOUND) {
-      string strRes((const char *)data.get_data(), data.get_size());
+      string strRes((const char *)data.get_data(), data.get_size()-1);
       if (flags != 0) {
         free(data.get_data());
       }

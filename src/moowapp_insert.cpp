@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
   
   /// Reconstruct list of modules
   set<string> setModules;
-  set<string>::iterator it;
+  set<string>::iterator it, itLast;
   string strModules = dbw_get(db, "modules");
   if (strModules.length() > 0) {
     cout << "START > Modules=" << strModules << endl;
@@ -75,14 +75,17 @@ int main(int argc, char* argv[]) {
   
   /// Update list of modules in DB
   strModules = "";
-  for(it=setModules.begin(); it!=setModules.end(); ) {
-    strModules += *it + "/";
-    it++;
+  itLast = --setModules.end();
+  for(it=setModules.begin(); it!=setModules.end(); it++) {
+    strModules += *it;
+    if (it != itLast) {// do not add ending slash to the last item
+      strModules += "/";
+    }
   }
   cout << "NB Modules: " << (int) setModules.size() << endl;
-  dbw_remove(db, "modules");
+  dbw_remove(db, KEY_MODULES);
   cout << "Removed" << endl;
-  dbw_add(db, "modules", strModules);
+  dbw_add(db, KEY_MODULES, strModules);
   cout << "Re-added" << endl;
   
   /// Close the database

@@ -55,8 +55,8 @@ int getDBModules(set<string> &setModules, const string modulesLine) {
   if (strModules.length() <= 0)
     return 1;
   
+  setModules.clear();
   boost::split(setModules, strModules, boost::is_any_of("/"));
-  setModules.erase(""); // Delete empty module
   
   /// Exclude modules configuration
   if (c.EXCLUDE_MOD != "") {
@@ -1691,16 +1691,16 @@ void compressionThread(const Config c) {
   
   /// Specify a fixed time in the day : 03h00 the next day for the next compression of DB
   // FOR DEBUG purpose USE seconds + 10
-  boost::posix_time::ptime t = boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds(10);
-  //boost::gregorian::date_duration dd(1);
-  //boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() + dd, boost::posix_time::time_duration(3,0,0));
+  //boost::posix_time::ptime t = boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds(10);
+  boost::gregorian::date_duration dd(1);
+  boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() + dd, boost::posix_time::time_duration(3,0,0));
   
   try {
     while(true) {
       boost::gregorian::date today(boost::gregorian::day_clock::universal_day());
       boost::gregorian::date dateToHold(today - dd_week);
       boost::posix_time::ptime timeNow(boost::posix_time::second_clock::universal_time());
-      cout << "Obj:" << boost::posix_time::to_simple_string(t) << " & now:" << boost::posix_time::to_simple_string(timeNow) << endl;
+      cout << "COMPRESSION Obj:" << boost::posix_time::to_simple_string(t) << " & now:" << boost::posix_time::to_simple_string(timeNow) << endl;
 	  	
     	/// New iteration check if current time > parsing date fixed (= 03h00)
       /// Compression to file atomically
@@ -1719,10 +1719,7 @@ void compressionThread(const Config c) {
         cout << buffer << endl;
         
         /// Reconstruct list of modules
-        setModules.clear();
         getDBModules(setModules, KEY_MODULES);
-        
-        setDeletedModules.clear();
         getDBModules(setDeletedModules, KEY_DELETED_MODULES);
         
         /// Reloop thru all days since last parsing to j-x in order to remove details and store days only
@@ -1816,8 +1813,8 @@ void compressionThread(const Config c) {
         mutex.unlock();
       }
       
-      /// Sleep for 10 minutes
-      boost::this_thread::sleep(boost::posix_time::seconds(20));
+      /// Sleep for 20 minutes
+      boost::this_thread::sleep(boost::posix_time::minutes(20));
     }
   } catch(boost::thread_interrupted &ex) {
     cout << "done" << endl;
@@ -1878,7 +1875,7 @@ void readLogThread(const Config c, unsigned long readPos) {
       
       /// Reconstruct list of modules
       set<string> setModules;
-      set<string>::iterator it;
+      set<string>::iterator it, itLast;
       getDBModules(setModules, KEY_MODULES);
     
       readPos = readLogFile(c, oss.str(), setModules, readPos);
@@ -1893,12 +1890,16 @@ void readLogThread(const Config c, unsigned long readPos) {
       } else cout << "Unable to save pos to file" << endl;
       
       /// Update list of modules in DB
-      string modules = "";
+      string strModules = "";
+      itLast = --setModules.end();
       for(it=setModules.begin(); it!=setModules.end(); it++) {
-        modules += *it + "/";
+        strModules += *it;
+        if (it != itLast) {// do not add ending slash to the last item
+          strModules += "/";
+        }
       }
       dbw_remove(db, KEY_MODULES);
-      dbw_add(db, KEY_MODULES, modules);
+      dbw_add(db, KEY_MODULES, strModules);
       
       /// Released the mutex
       mutex.unlock();
