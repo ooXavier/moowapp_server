@@ -56,3 +56,6 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 ### V0.2.3
 - Add administrative functions : list webapps, merge webapps stats
 - Fix #1, error on concurrent requests
+
+## Performance number
+- V0.2.3 : Core 2 Duo 2,8Ghz can filter and add in DB up to 11 926 lines / second.
