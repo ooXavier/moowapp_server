@@ -23,10 +23,10 @@ using namespace std;
 Db *db = NULL;
 
 int main(int argc, char* argv[]) {
-  // Read configuration file
+  /// Read configuration file
   Config c;
   
-  // open the database
+  /// Open the database
   db = dbw_open(c.DB_PATH, c.DB_NAME);
   if (db == NULL) {
     cout << "DB not opened. Exit program." << endl;
@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
   size_t founds;
   boost::progress_timer t; // start timing
   
-  // Reconstruct list of modules
+  /// Reconstruct list of modules
   set<string> setModules;
   set<string>::iterator it;
   string strModules = dbw_get(db, "modules");
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
     boost::split(setModules, strModules, boost::is_any_of("/"));
   }
   
-  // Loop through files to get access_log files
+  /// Loop through files to get access_log files
   string fileName;
   boost::filesystem::path dir_path(c.FILTER_PATH);
   if (exists(dir_path)) {
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
       
       fileName = itr->path().filename().string();
       bool ok = true;
-      // Remove filenames from arguments from files to be analyzed
+      /// Remove filenames from arguments from files to be analyzed
       for(int i=1; i < argc; i++) {
         if(strcmp(fileName.c_str(), argv[i]) == 0) {
           ok = false;
@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
         }
       }
       
-      // For each log file matching name parse lines
+      /// For each log file matching name parse lines
       founds = fileName.find(c.FILTER_SSL);
       if (ok && founds!=string::npos) {
         cout << fileName;
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
     }
   }
   
-  // Update list of modules in DB
+  /// Update list of modules in DB
   strModules = "";
   for(it=setModules.begin(); it!=setModules.end(); ) {
     strModules += *it + "/";
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
   dbw_add(db, "modules", strModules);
   cout << "Re-added" << endl;
   
-  // close the database
+  /// Close the database
   cout << "Closing db connection" << endl;
   dbw_close(db);
   

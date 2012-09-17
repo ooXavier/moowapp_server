@@ -49,7 +49,7 @@ bool quit;              //!< Boolean used to quit server properly
  * \param[in] modulesLine Key in DB to look for modules.
  */
 int getDBModules(set<string> &setModules, const string modulesLine) {
-  //-- Create a set of all known applications in DB
+  /// Create a set of all known applications in DB
   string strModules = dbw_get(db, modulesLine);
   
   if (strModules.length() <= 0)
@@ -58,7 +58,7 @@ int getDBModules(set<string> &setModules, const string modulesLine) {
   boost::split(setModules, strModules, boost::is_any_of("/"));
   setModules.erase(""); // Delete empty module
   
-  // Exclude modules configuration
+  /// Exclude modules configuration
   if (c.EXCLUDE_MOD != "") {
     set<string>::iterator it = setModules.begin();
     while(it!=setModules.end()) {
