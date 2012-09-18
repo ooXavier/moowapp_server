@@ -21,6 +21,7 @@ extern Db *db;
  */
 struct SslLog {
   std::string app;
+  std::string group;
   std::string type;
   std::string id_url;
   std::string date_d;

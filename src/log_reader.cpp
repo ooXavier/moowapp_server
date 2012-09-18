@@ -28,6 +28,40 @@
 using namespace std;
 
 /*!
+ * \fn string findExtInLine(map<string, set<string> > &mapExtensions, const string &line)
+ * \brief Find an extension configured in a line. Return group name if found.
+ *
+ * \param[in, out] mapExtensions Map of extensions (from config object).
+ * \param[in] line to be analysed.
+ */
+string findExtInLine(map<string, set<string> > &mapExtensions, const string &line) {
+  string subLine;
+  /// Keep url without args
+  size_t qMark = line.find("?");
+  if (qMark != string::npos) {
+    subLine = line.substr(0, qMark);
+  } else {
+    subLine = line;
+  }
+  
+  /// Search extension in map
+  size_t foundExt;
+  map<string, set<string> >::iterator itExtMap = mapExtensions.begin();
+  set<string>::iterator itExtSet;
+  for(; itExtMap!=mapExtensions.end(); itExtMap++) {
+    for(itExtSet=(itExtMap->second).begin();itExtSet!=(itExtMap->second).end();itExtSet++) {
+      foundExt = subLine.find(*itExtSet);
+      /// If extension is found retourn associated group name
+      if (foundExt != string::npos) {
+        return itExtMap->first;
+      }
+    }
+  }
+  /// Return empty string if not found
+  return "";
+}
+
+/*!
  * \fn bool analyseLine(Config c, const string line, set<string> &setModules)
  * \brief Convert a line of a log file to a new row of visit in stat DB (or do a +1 on an existing line).
  *
@@ -39,14 +73,24 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   if (line.length() < 10) return false; // Line not long enough : error
   SslLog logLine;
   
-  // Check the filter in the line before going further
-  size_t foundExt=line.find(c.FILTER_EXTENSION);
+  // Split values to parse
+  vector<string> strs;
+  boost::split(strs, line, boost::is_any_of(" "));
+  
+  /// Check the filter in the line before going further
+  // first extension
+  logLine.group = findExtInLine(c.FILTER_EXTENSION, strs[6]);
+  if ((logLine.group).empty()) {
+    return false;
+  }
+  
+  // than response code
   size_t foundUrl=line.find(c.FILTER_URL1);
-  if ((foundExt!=string::npos) && (foundUrl!=string::npos)) {
+  if (foundUrl!=string::npos) {
     logLine.type = "1"; // Keep only URL with return code " 200 "
   } else {
     foundUrl=line.find(c.FILTER_URL2);
-    if ((foundExt!=string::npos) && (foundUrl!=string::npos)) {
+    if ( foundUrl!=string::npos) {
       logLine.type = "2";// Keep only URL with return code " 302 "
     } else {
       /*foundUrl=line.find(c.FILTER_URL3);
@@ -57,6 +101,9 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
       //}
     }
   }
+  
+  if (c.DEBUG_LOGS) cout << "> Url: " << strs[6];
+  
   //cout << "line: " << line << endl;
   char buffer[10];
   unsigned int iHour = 0, iMin = 0;
@@ -73,10 +120,6 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   cout << "url: " << url << endl;
   cout << "prenom: " << prenom << endl;
   cout << "nom: " << nom << endl;*/
-  
-  // Split values to parse
-  vector<string> strs;
-  boost::split(strs, line, boost::is_any_of(" "));
   
   // First data is a true IP with Boost
   //boost::system::error_code ec;
@@ -107,7 +150,6 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   size_t slash = strs[6].find("/", 1);
   if (slash == string::npos) return false;
   logLine.app = strs[6].substr(1, slash-1);
-  if (c.DEBUG_LOGS) cout << "> Url: " << strs[6];
   /*if (strs[9] == "-") {
     logLine.responseSize = "0";
   } else {
@@ -116,10 +158,10 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   logLine.responseDuration = strs[10];*/
   
   // Set Key
-  logLine.logKey = logLine.app+'/'+logLine.type+'/'+logLine.date_d+'/'+logLine.date_t;
+  logLine.logKey = logLine.app+'/'+logLine.group+'/'+logLine.type+'/'+logLine.date_d+'/'+logLine.date_t;
   
   if (c.DEBUG_LOGS) cout << " in App: " << logLine.app << " at " << logLine.date_d << " " << logLine.date_t
-                         << " as " << logLine.type << " (key set as " << logLine.logKey << ")" << flush;
+                         << " as " << logLine.group << " " << logLine.type << " (key set as " << logLine.logKey << ")" << flush;
   
   string val = dbw_get(db, logLine.logKey);
   if (val.length() > 0) { // If Key already exist in db add +1 visit

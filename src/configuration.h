@@ -8,6 +8,8 @@
 #define MOOWAPP_STATS_CONFIGURATION_H_
 
 #include <string>
+#include <map> // Map of pages extensions
+#include <set> // Set of extensions
 
 /*!
  * \class Config
@@ -27,7 +29,7 @@ public:
   std::string FILTER_PATH; //!< %PATH% of the log files to analyse for insertion
   std::string FILTER_SSL; //!< %NAME% of the log files to analyse for insertion
   
-  std::string FILTER_EXTENSION; //!< Extension to search in (ssl_)access_log files
+  std::map<std::string, std::set<std::string> > FILTER_EXTENSION; //!< Extension to search in (ssl_)access_log files
   std::string FILTER_URL1; //!< First string to search in (ssl_)access_log files
   std::string FILTER_URL2; //!< Second string to search in (ssl_)access_log files
   std::string FILTER_URL3; //!< Third string to search in (ssl_)access_log files

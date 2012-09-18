@@ -9,6 +9,9 @@
 #include <map> // Conf info
 #include <stdio.h> // fopen, fgets, fclose, sscanf
 
+// Boost
+#include <boost/algorithm/string.hpp> // Split
+
 #include "global.h"
 #include "configuration.h"
 
@@ -22,7 +25,7 @@ void Config::trimInfo(string& s) {
 
 Config::Config(string cfgFile) {
   typedef string::size_type pos;
-  const string delimiter = "=", comment = "#";
+  const string delimiter = "=", comment = "#", separator = "|";
   const pos skip = delimiter.length();
   
   map<string, string> mapConf;
@@ -62,7 +65,22 @@ Config::Config(string cfgFile) {
   DB_NAME   = (mapConf.find("DB_NAME") != mapConf.end()) ? mapConf["DB_NAME"] : "storage.db";
   FILTER_PATH = (mapConf.find("FILTER_PATH") != mapConf.end()) ? mapConf["FILTER_PATH"] : ".";
   FILTER_SSL = (mapConf.find("FILTER_SSL") != mapConf.end()) ? mapConf["FILTER_SSL"] : "access.log";
-  FILTER_EXTENSION = (mapConf.find("FILTER_EXTENSION") != mapConf.end()) ? mapConf["FILTER_EXTENSION"] : ".do";
+  
+  string strPageGroups = (mapConf.find("FILTER_EXTENSION") != mapConf.end()) ? mapConf["FILTER_EXTENSION"] : "w";
+  set<string> setPageGroups, setExtensions;
+  boost::split(setPageGroups, strPageGroups, boost::is_any_of(separator));
+  set<string>::iterator it;
+  for(it=setPageGroups.begin(); it!=setPageGroups.end(); it++) {
+    if (mapConf.find(*it) != mapConf.end()) {
+      setExtensions.clear();
+      boost::split(setExtensions, mapConf[*it], boost::is_any_of(separator));
+      FILTER_EXTENSION.insert( pair<string, set<string> >(*it, setExtensions));
+    } else {
+      cerr << "Missing configuration for key=" << *it << endl; 
+      throw;
+    }
+  }
+  
   FILTER_URL1 = (mapConf.find("FILTER_URL1") != mapConf.end()) ? mapConf["FILTER_URL1"] : " 200 ";
   FILTER_URL2 = (mapConf.find("FILTER_URL2") != mapConf.end()) ? mapConf["FILTER_URL2"] : " 302 ";
   FILTER_URL3 = (mapConf.find("FILTER_URL3") != mapConf.end()) ? mapConf["FILTER_URL3"] : " 404 ";
