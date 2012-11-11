@@ -57,5 +57,9 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 - Add administrative functions : list webapps, merge webapps stats
 - Fix #1, error on concurrent requests
 
+### V0.2.4
+- Add support other pages than visits (img, css, js and html/xml files) with the ability to group them in the configuration file
+- Add a detailed view by 60 seconds
+
 ## Performance number
 - V0.2.3 : Core 2 Duo 2,8Ghz can filter and add in DB up to 11 926 lines / second.
