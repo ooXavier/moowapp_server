@@ -25,12 +25,32 @@ struct SslLog {
   std::string type;
   std::string id_url;
   std::string date_d;
+  std::string date_t_minutes;
   std::string date_t;
+  std::string date_t_hours;
   std::string logKey;
   std::string responseSize;
   std::string responseDuration;
   int visit;
 };
+
+/*!
+ * \fn string findExtInLine(map<string, set<string> > &mapExtensions, const string &line)
+ * \brief Find an extension configured in a line. Return group name if found.
+ *
+ * \param[in, out] mapExtensions Map of extensions (from config object).
+ * \param[in] line to be analysed.
+ */
+std::string findExtInLine(std::map<std::string, std::set<std::string> > &mapExtensions, const std::string &line);
+
+/*!
+ * \fn void insertLogLine(SslLog &logLine, set<string> &setModules)
+ * \brief Insert a new row of visit in stat DB (or do a +1 on an existing line).
+ *
+ * \param[in] c Config object.
+ * \param[in] strLog String format of log line to insert in DB.
+ */
+bool insertLogLine(Config &c, const std::string strLog);
 
 /*!
  * \fn void analyseLine(string line, set<string> &setModules)

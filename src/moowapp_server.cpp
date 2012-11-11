@@ -2,12 +2,12 @@
  * \file moowapp_server.cpp
  * \brief Web Statistics DB Server aka : mooWApp
  * \author Xavier ETCHEBER
- * \version 0.3.x
+ * \version 0.2.4
  */
 
 #include <iostream>
 #include <string>
-#include <sstream> // stringstrezm
+#include <sstream> // stringstream
 #include <fstream> // ifstream, ofstream
 #include <set>
 #include <vector> // Line log analyse
@@ -48,7 +48,7 @@ bool quit;              //!< Boolean used to quit server properly
  * \param[in, out] setModules A set to store the web modules names.
  * \param[in] modulesLine Key in DB to look for modules.
  */
-int getDBModules(set<string> &setModules, const string modulesLine) {
+int getDBModules(set<string> &setModules, const string &modulesLine) {
   /// Create a set of all known applications in DB
   string strModules = dbw_get(db, modulesLine);
   
@@ -170,7 +170,7 @@ void statsConstructResponse(vector< pair<string, map<int, int> > > &vRes, string
  * \param[in] strDate Date to extract as string. Ex: 1314253853 or Thursday 25 November
  * \param[in] format New format for date.
  */
-string convertDate(string strDate, string format) {
+string convertDate(const string &strDate, const string &format) {
   istringstream ss;
   time_t tStamp;
   struct tm * timeinfo;
@@ -346,7 +346,9 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
   string strMode;        // Mode. Ex: app or all
   string strModules;     // Number of modules. Ex: 4
   string strDates;       // Number of dates. Ex: 60
+  string strGroup;       // Type of page requested. Ex: w for web (depends on configuration.ini)
   string strType;        // Mode. Ex: 1:visits, 2:views, 3:statics
+  bool detailed;         // Detailed mode ? Ex: yes, no
   string strOffset;      // Date offset. Ex: 60
   string strApplication; // Application name. Ex: Calendar
   string strDate;        // Start date. Ex: 1314253853 or Thursday 25 November
@@ -404,11 +406,29 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
     mg_printf(conn, "%s", "Missing parameter: offset");
     return;
   }
+  if ((itParam = mapParams.find("group")) != mapParams.end()) {
+    strGroup = itParam->second;
+  } else {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: group");
+    return;
+  }
   if ((itParam = mapParams.find("type")) != mapParams.end()) {
     strType = itParam->second;
   } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: type");
+    return;
+  }
+  if ((itParam = mapParams.find("detailed")) != mapParams.end()) {
+    if ((itParam->second).compare("yes") ==0) {
+	  detailed = true;
+    } else {
+	  detailed = false;
+    }
+  } else {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: detailed");
     return;
   }
   
@@ -419,16 +439,23 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
   
   /// Set each date to according offset in response.
   max += offset;
-  int ii = 0, iii = 0;
+  int ii = 0, iii = 0, key = 0;
+  int sub_off = offset-(offset%100); 
   for(i = offset; i < max; i++, ii++) {
-    if (ii!=0 && ii%6 == 0) { ii = 0; iii+=10; }
-    oss << "d_" << (offset + ii + iii);
+    if (detailed) {
+	    if (ii!=0 && ii%60 == 0) { ii = 0; iii+=100; }
+	    key = sub_off + ii + iii;
+    } else {
+	    if (ii!=0 && ii%6 == 0) { ii = 0; iii+=10; }
+	    key = offset + ii + iii;
+    }
+    oss << "d_" << key;
     if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
       strDate = itParam->second;
-      //cout << "ici: i=" << i << " ii=" << ii << " iii=" << iii << " => " << (offset + ii + iii) << " strDate=" << strDate << endl;
-      mg_printf(conn, "\"%d\":\"%s\",", (offset + ii + iii), strDate.c_str()); // Timestamp returned
+      //cout << "ici: i=" << i << " ii=" << ii << " iii=" << iii << " => " << key << " strDate=" << strDate << endl;	
+      mg_printf(conn, "\"%d\":\"%s\",", key, strDate.c_str()); // Timestamp returned
       
-      mapDate.insert( pair<int,string>((offset + ii + iii), convertDate(strDate, "%Y-%m-%d") ) ); // Convert timestamp to Y-m-d
+      mapDate.insert( pair<int,string>(key, convertDate(strDate, "%Y-%m-%d") ) ); // Convert timestamp to Y-m-d
     }  
     oss.str("");
   }
@@ -436,7 +463,11 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
   /// Set Mode and Date in response.
   // Extract "Day NDay Month" from last timestamp
   // Put mode and label after the last date
-  i = offset + ii + iii;
+  if (detailed) {
+  	  i = sub_off + ii + iii;
+  } else {
+    i = offset + ii + iii;
+  }
   mg_printf(conn, "\"%d\":\"intra\",\"%d\":\"%s\"},", i, i+1, convertDate(strDate, "%A %d %B").c_str());
   
   /// Build visits stats in response for each modules.
@@ -489,8 +520,13 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
       for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
         //-- Get nb visit from DB
         for(its=setModules.begin(), minVisit=0; its!=setModules.end(); its++) {
-          // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-          oss << *its << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;
+          // Build Key ex: "application/w/1/2011-04-24/150";
+          oss << *its << '/' << strGroup << '/' << strType << "/" << (*itm).second << '/' << setfill('0');
+		      if (detailed) {
+            oss << setw(4) << (*itm).first;
+          } else {
+            oss << setw(3) << (*itm).first;
+          }
           // Search Key (oss) in DB
           visit = dbw_get(db, oss.str());
           if (visit.length() > 0) {
@@ -522,18 +558,23 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
       //-- and each dates.
       for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
         //-- Get nb visit from DB
-        // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-        oss << strModule << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;
+        // Build Key ex: "application/w/1/2011-04-24/150";
+        oss << strModule << '/' << strGroup << '/' << strType << "/" << (*itm).second << '/' << setfill('0');
+        if (detailed) {
+          oss << setw(4) << (*itm).first;
+        } else {
+          oss << setw(3) << (*itm).first;
+        }
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
-        oss.str("");
         int iVisit = 0;
         if (visit.length() > 0) {
           // Update nb visit of the app for this day
           sscanf(visit.c_str(), "%d", &iVisit);
         }
         // Return nb visit
-        //if (c.DEBUG_REQUESTS) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << boost::lexical_cast<int>(visit) << endl; 
+        if (c.DEBUG_REQUESTS) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit << endl;
+        oss.str("");
         mapResMod.insert(pair<int, int>((*itm).first, iVisit));
       }
       vRes.push_back(make_pair(strModule, mapResMod));
@@ -550,8 +591,13 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
       //-- Get nb visit from DB
       for(its=setOtherModules.begin(), minVisit=0; its!=setOtherModules.end(); its++) {
         if (c.DEBUG_APP_OTHERS && itm == mapDate.begin()) cout << *its << ", ";
-        // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-        oss << *its << '/' << strType << "/" << (*itm).second << '/' << (*itm).first;
+        // Build Key ex: "application/2011-04-24/150";
+				oss << *its << '/' << strGroup << '/' << strType << "/" << (*itm).second << '/' << setfill('0');
+				if (detailed) {
+          oss << setw(4) << (*itm).first;
+        } else {
+          oss << setw(3) << (*itm).first;
+        }
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         if (visit.length() > 0) {
@@ -561,8 +607,9 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
           minVisit += iVisit;
         }
         // Return last nb visit
-        //if (c.DEBUG_REQUESTS && strcmp("xxx", strApplication)==0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << boost::lexical_cast<int>(visit) << endl; 
-        oss.str("");
+        //if (c.DEBUG_REQUESTS && strcmp("xxx", strApplication)==0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit << endl; 
+        //if (c.DEBUG_REQUESTS && iVisit!=0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit << endl; 
+				oss.str("");
       }
       if (c.DEBUG_APP_OTHERS && itm == mapDate.begin()) cout << endl;
       mapResMod.insert(pair<int, int>((*itm).first, minVisit));
@@ -603,14 +650,14 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
  */
 void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri) {
   bool is_jsonp;
-  int i, j, max, nbApps, nbModules, k, iVisit;
-  unsigned int hourVisit;
+  int i, j, max, nbApps, nbModules, iVisit;
   string strDates;       // Number of dates. Ex: 60
   string strDate;        // Start date. Ex: 1314253853 or Thursday 25 November
-  string strModules;     // Number of modules. Ex: 4
+  string strModules;     // Number of modules. Ex: 4m
   string strApplication; // Application name. Ex: Calendar
   string strModule;      // Modules name. Ex: module_test_1
   string strMode;        // Mode. Ex: app or all
+  string strGroup;       // Type of page requested. Ex: w for web (depends on configuration.ini)
   string strType;        // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
   string visit;
@@ -657,6 +704,13 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
     mg_printf(conn, "%s", "Missing parameter: dates");
     return;
   }
+  if ((itParam = mapParams.find("group")) != mapParams.end()) {
+    strGroup = itParam->second;
+  } else {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: group");
+    return;
+  }
   if ((itParam = mapParams.find("type")) != mapParams.end()) {
     strType = itParam->second;
   } else {
@@ -670,12 +724,11 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
   is_jsonp = handle_jsonp(conn, ri);
   mg_printf(conn, "%s", "[{");
   
-  i = 0;
-  for(max += i; i < max; i++) {
+  for(i = 0; i < max; i++) {
     oss << "d_" << i;
     if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
       strDate = itParam->second;
-      //-- Set each date to according offset in response.
+	  //-- Set each date to according offset in response.
       mg_printf(conn, "\"%d\":\"%s\",", i, strDate.c_str());
     }
     oss.str("");
@@ -735,12 +788,11 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
       if (c.DEBUG_REQUESTS) cout << "]" << endl;
 
       /// and each module in an app
-      hourVisit = 0;
-      for(int l=k=0, max=DB_TIMES_SIZE;l<max;l++) {
+      for(int l=0, max=DB_TIMES_HOURS_SIZE;l<max;l++) {
         //-- Get nb visit from DB
         for(it=setModules.begin(); it!=setModules.end(); it++) {
-          // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-          oss << *it << '/' << strType << "/" << strDateFormated << '/' << dbTimes[l];
+          // Build Key ex: "application/w/1/2011-04-24/150";
+          oss << *it << '/' << strGroup << '/' << strType << "/" << strDateFormated << '/' << dbTimesHours[l];
           // Search Key (oss) in DB
           visit = dbw_get(db, oss.str());
           iVisit = 0;
@@ -748,23 +800,12 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
             sscanf(visit.c_str(), "%d", &iVisit);
             //if (*it == "bureau") cout << oss.str() << " = " << iVisit << endl;
           }
-          int timeVal = 0;
-          sscanf(dbTimes[l].c_str(), "%d", &timeVal);
-          if (floor(timeVal/10) == k) {
-            hourVisit += iVisit;
-          } else {
-            if (c.DEBUG_REQUESTS) cout << " visits for " << oss.str() << " k=" << k << " hourVisit=" << hourVisit << " dbTimes[i]=" << dbTimes[l] << endl;
-            // Return nb visit
-            mapResMod.insert(pair<int, int>(k, hourVisit));
-            hourVisit = iVisit;
-            k = floor(timeVal/10);
-          }
+          if (c.DEBUG_REQUESTS && iVisit != 0) cout << " visits for " << oss.str() << " => " << iVisit << " dbTimesHours[l]=" << dbTimesHours[l] << endl;
+          // Return nb visit
+          mapResMod.insert(pair<int, int>(l, iVisit));
           oss.str("");
         }
       }
-      //cout << "LAST k=" << k << " hourVisit=" << hourVisit << endl;
-      /// Return last nb visit
-      mapResMod.insert(pair<int, int>(23, hourVisit));
     
       vRes.push_back(make_pair(strApplication, mapResMod));
     }
@@ -777,13 +818,12 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
         continue;
       }
       oss.str("");
-      if (c.DEBUG_REQUESTS) cout << " - module=" << strModule;
+      if (c.DEBUG_REQUESTS) cout << " - module=" << strModule << endl;
     
       /// Get nb visit from DB
-      k = hourVisit = 0;
-      for(int l=0, max=DB_TIMES_SIZE;l<max;l++) {
-        // Build Key ex: "creer_modifier_retrocession/2011-04-24/150";
-        oss << strModule << '/' << strType << "/" << strDateFormated << '/' << dbTimes[l];
+      for(int l=0, max=DB_TIMES_HOURS_SIZE;l<max;l++) {
+        // Build Key ex: "application/w/1/2011-04-24/150";
+        oss << strModule << '/' << strGroup << '/' << strType << "/" << strDateFormated << '/' << dbTimesHours[l];
         //if (c.DEBUG_REQUESTS && l==0) cout << " visits for " << oss.str() << endl;
         /// Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
@@ -792,24 +832,11 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
           sscanf(visit.c_str(), "%d", &iVisit);
           //if (c.DEBUG_REQUESTS) cout << oss.str() << " = " << iVisit << endl;
         }
-        int timeVal = 0;
-        sscanf(dbTimes[l].c_str(), "%d", &timeVal);
-        if (floor(timeVal/10) == k) {
-          hourVisit += iVisit;
-          //cout << "hourVisit=" << hourVisit << endl;
-        } else {
-          if (c.DEBUG_REQUESTS) cout << oss.str() << " => " << hourVisit << endl;
-          /// Return nb visit
-          mapResMod.insert(pair<int, int>(k, hourVisit));
-          hourVisit = iVisit;
-          k = floor(timeVal/10);
-        }
+        if (c.DEBUG_REQUESTS) cout << oss.str() << " at " << l << "h00 => " << iVisit << endl;
+        /// Return nb visit
+        mapResMod.insert(pair<int, int>(l, iVisit));
         oss.str("");
-      } 
-      //if (c.DEBUG_REQUESTS) cout << "LAST k=" << k << " hourVisit=" << hourVisit << endl;
-      if (c.DEBUG_REQUESTS) cout << endl;
-      /// Return last nb visit
-      mapResMod.insert(pair<int, int>(23, hourVisit));
+      }
       
       vRes.push_back(make_pair(strModule, mapResMod));
     }
@@ -820,15 +847,12 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
     map<int, int> mapResMod;
     if (c.DEBUG_APP_OTHERS) cout << "Others modules (" << setOtherModules.size() << "): " << flush;
     
-    hourVisit = 0;
     /// Get nb visit from DB
-    for(int l = k = 0, max=DB_TIMES_SIZE;l<max;l++) {
-      int timeVal = 0;
-      sscanf(dbTimes[l].c_str(), "%d", &timeVal);
+    for(int l = 0, max=DB_TIMES_HOURS_SIZE;l<max;l++) {
       for(it=setOtherModules.begin(), nbVisitForApp = 0; it!=setOtherModules.end(); it++) {
         if (c.DEBUG_APP_OTHERS && l == 0) cout << *it << ", ";
-        /// Build Key ex: "creer_modifier_retrocession/1/2011-04-24/150";
-        oss << *it << '/' << strType << "/" << strDateFormated << '/' << timeVal;
+        /// Build Key ex: "application/w/1/2011-04-24/150";
+        oss << *it << '/' << strGroup << '/' << strType << "/" << strDateFormated << '/' << dbTimesHours[l];
         /// Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         if (visit.length() > 0) {
@@ -840,19 +864,9 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
         oss.str("");
       }
       if (c.DEBUG_APP_OTHERS && l == 0) cout << endl;
-      if (floor(timeVal/10) == k) {
-        hourVisit += nbVisitForApp;
-      } else {
-        //if (c.DEBUG_APP_OTHERS) cout << "HERE k=" << k << " dbTimes[i]=" << timeVal << " hourVisit=" << hourVisit << endl;
-        /// Return nb visit
-        mapResMod.insert(pair<int,int>(k, hourVisit));
-        hourVisit = nbVisitForApp;
-        k = floor(timeVal/10);
-      }
+      /// Return nb visit
+      mapResMod.insert(pair<int,int>(l, nbVisitForApp));
     }
-    /// Return last nb visit
-    mapResMod.insert(pair<int,int>(23, hourVisit));
-    oss.str("");
     vRes.push_back(make_pair("Others", mapResMod));
   }
   
@@ -889,6 +903,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
   string strApplication;  // Application name. Ex: Calendar
   string strModule;  // Modules name. Ex: gerer_connaissance
   string strMode;     // Mode. Ex: app or all
+  string strGroup;       // Type of page requested. Ex: w for web (depends on configuration.ini)
   string strType;     // Mode. Ex: 1:visits, 2:views, 3:statics
   ostringstream oss;
   string visit, date;
@@ -941,6 +956,13 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
   } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: offset");
+    return;
+  }
+  if ((itParam = mapParams.find("group")) != mapParams.end()) {
+    strGroup = itParam->second;
+  } else {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: type");
     return;
   }
   if ((itParam = mapParams.find("type")) != mapParams.end()) {
@@ -1042,8 +1064,8 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
           //-- and each module in an app
           for(itt=setModules.begin(); itt!=setModules.end(); itt++) {
             //-- Get nb visit from DB
-            // Build Key ex: "creer_modifier_retrocession/1/2011-04-24";
-            oss << *itt << '/' << strType << "/" << *it;
+            // Build Key ex: "application/w/1/2011-04-24";
+            oss << *itt << '/' << strGroup << '/' << strType << "/" << *it;
             // Search Key (oss) in DB
             visit = dbw_get(db, oss.str());
             oss.str("");
@@ -1078,8 +1100,8 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
       sscanf(strOffset.c_str(), "%d", &j);
       for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
         //-- Get nb visit from DB
-        // Build Key ex: "creer_modifier_retrocession/2011-04-24";
-        oss << strModule << '/' << strType << "/" << *it;
+        // Build Key ex: "application/w/1/2011-04-24";
+        oss << strModule << '/' << strGroup << '/' << strType << "/" << *it;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         if (visit.length() == 0) {
@@ -1107,8 +1129,8 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
     for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
       for(itt=setOtherModules.begin(), nbVisitForApp = 0; itt!=setOtherModules.end(); itt++) {
         //-- Get nb visit from DB
-        // Build Key ex: "creer_modifier_retrocession/2011-04-24";
-        oss << *itt << '/' << strType << "/" << *it;
+        // Build Key ex: "application/w/1/2011-04-24";
+        oss << *itt << '/' << strGroup << '/' << strType << "/" << *it;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         oss.str("");
@@ -1166,6 +1188,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
   string strApplication;  // Application name. Ex: Calendar
   string strModule;  // Modules name. Ex: module_test_1
   string strMode;     // Mode. Ex: app or all
+  string strGroup;       // Type of page requested. Ex: w for web (depends on configuration.ini)
   string strType;     // Mode. Ex: 1 or 2 or 3
   ostringstream oss;
   string mode, visit, date;
@@ -1218,6 +1241,13 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
   } else {
     mg_printf(conn, "%s", standard_json_reply);
     mg_printf(conn, "%s", "Missing parameter: offset");
+    return;
+  }
+  if ((itParam = mapParams.find("group")) != mapParams.end()) {
+    strGroup = itParam->second;
+  } else {
+    mg_printf(conn, "%s", standard_json_reply);
+    mg_printf(conn, "%s", "Missing parameter: type");
     return;
   }
   if ((itParam = mapParams.find("type")) != mapParams.end()) {
@@ -1321,8 +1351,8 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
           //-- and each module in an app
           for(itt=setModules.begin(); itt!=setModules.end(); itt++) {
             //-- Get nb visit from DB
-            // Build Key ex: "creer_modifier_retrocession/1/2011-04-24";
-            oss << *itt << '/' << strType << "/" << *it;
+            // Build Key ex: "application/w/1/2011-04-24";
+            oss << *itt << '/' << strGroup << '/' << strType << "/" << *it;
             // Search Key (oss) in DB
             visit = dbw_get(db, oss.str());
             oss.str("");
@@ -1357,8 +1387,8 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
       sscanf(strOffset.c_str(), "%d", &j);
       for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
         //-- Get nb visit from DB
-        // Build Key ex: "creer_modifier_retrocession/1/2011-04-24";
-        oss << strModule << '/' << strType << '/' << *it;
+        // Build Key ex: "application/w/1/2011-04-24";
+        oss << strModule << '/' << strGroup << '/' << strType << '/' << *it;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         if (c.DEBUG_REQUESTS) cout << oss.str() << " => j=" << j << " - "<< visit << " visits." << endl;
@@ -1385,8 +1415,8 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
     for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
       for(itt=setOtherModules.begin(), nbVisitForApp = 0; itt!=setOtherModules.end(); itt++) {
         //-- Get nb visit from DB
-        // Build Key ex: "creer_modifier_retrocession/2011-04-24";
-        oss << *itt << '/' << strType << "/" << *it;
+        // Build Key ex: "application/w/1/2011-04-24";
+        oss << *itt << '/' << strGroup << '/' << strType << "/" << *it;
         // Search Key (oss) in DB
         visit = dbw_get(db, oss.str());
         oss.str("");
@@ -1671,34 +1701,40 @@ void *callback(enum mg_event event, struct mg_connection *conn) {
  */
 void compressionThread(const Config c) {
   uint64_t i, dayVisit;
-  int monthNumber, iVisit;
+  int iVisit;
   ostringstream oss;
   string visit;
   string strOss;
   set<string> setModules;
   set<string> setDeletedModules;
   set<string>::iterator it;
+  map<string, set<string> > mapExt = c.FILTER_EXTENSION;
+  map<string, set<string> >::iterator itExtMap;
   struct tm * timeinfo;
   time_t now;
   char buffer[80];
   
   /// At the first start do a compression from the first day of the year
   boost::gregorian::date dateNow(boost::gregorian::day_clock::universal_day());
-  boost::gregorian::date dateLast(dateNow.year()-1, boost::gregorian::Jan, 1);
+  boost::gregorian::date dateLast(dateNow.year(), boost::gregorian::Oct, 7);
   
   /// Hold the delay for non compressed stats
-  boost::gregorian::date_duration dd_week(c.DAYS_FOR_DETAILS);
-  
+  boost::gregorian::date_duration dd_minutes(c.DAYS_FOR_MINUTES_DETAILS);
+  boost::gregorian::date_duration dd_details(c.DAYS_FOR_DETAILS);
+  boost::gregorian::date_duration dd_hours(c.DAYS_FOR_HOURS_DETAILS);
+  boost::gregorian::date_duration dd(1);
+
   /// Specify a fixed time in the day : 03h00 the next day for the next compression of DB
   // FOR DEBUG purpose USE seconds + 10
   //boost::posix_time::ptime t = boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds(10);
-  boost::gregorian::date_duration dd(1);
   boost::posix_time::ptime t(boost::gregorian::day_clock::universal_day() + dd, boost::posix_time::time_duration(3,0,0));
   
   try {
     while(true) {
       boost::gregorian::date today(boost::gregorian::day_clock::universal_day());
-      boost::gregorian::date dateToHold(today - dd_week);
+      boost::gregorian::date dateToHoldMinutes(today - dd_minutes);
+      boost::gregorian::date dateToHold(today - dd_details);
+      boost::gregorian::date dateToHoldHours(today - dd_hours);
       boost::posix_time::ptime timeNow(boost::posix_time::second_clock::universal_time());
       cout << "COMPRESSION Obj:" << boost::posix_time::to_simple_string(t) << " & now:" << boost::posix_time::to_simple_string(timeNow) << endl;
 	  	
@@ -1730,43 +1766,72 @@ void compressionThread(const Config c) {
           if (ditr <= dateToHold) {
             cout << " R.";
           }
-          monthNumber = ditr->month();
           
           /// Check to see if this thread has been interrupted before going into each days of the curent month
           boost::this_thread::interruption_point();
         
           /// Loop thru modules to compress stored stats
           for(it=setModules.begin(); it!=setModules.end(); it++) {
-            for(int lineType = 1; lineType <= 2; lineType++) {
-              /// lineType=1 -> URL with return code "200"
-              /// lineType=2 -> URL with return code "302"
-              /// lineType=3 -> URL with return code "404"
-              dayVisit = 0;
-              oss << *it << '/' << lineType << '/' << ditr->year() << "-" << setfill('0') << setw(2) << monthNumber
-                  << "-" << setfill('0') << setw(2) << ditr->day();
-              strOss = oss.str();
-              for(i=0;i<DB_TIMES_SIZE;i++) {
-                // Search Key in DB
-                visit = dbw_get(db, strOss+'/'+dbTimes[i]);
-                if (visit.length() > 0) {
-                  if(c.DEBUG_LOGS && lineType == 1) cout << "C Found: " << strOss << '/' << dbTimes[i] << " =" << visit << "#" << endl;
-                  if (ditr <= dateToHold) {
-                    /// Delete the current Key in DB
-                    dbw_remove(db, strOss+'/'+dbTimes[i]);
+            for(itExtMap=mapExt.begin(); itExtMap!=mapExt.end(); itExtMap++) {
+              for(int lineType = 1; lineType <= 2; lineType++) {
+                /// lineType=1 -> URL with return code "200"
+                /// lineType=2 -> URL with return code "302"
+                /// lineType=3 -> URL with return code "404"
+                dayVisit = 0;
+                oss << *it << '/' << itExtMap->first << '/' << lineType << '/' << to_iso_extended_string(*ditr);
+                strOss = oss.str();
+								
+								// Remove old minutes time stats
+                if (ditr <= dateToHoldMinutes) {
+                  for(i=0;i<DB_TIMES_MINUTES_SIZE;i++) {
+										//if(c.DEBUG_LOGS && lineType == 1 && i == 0 && itExtMap->first == "w" && *it == "bureau")
+										//  cout << "C Search -Minutes-: " << strOss << '/' << dbTimesMinutes[i] << endl;
+                    // Search Key in DB
+                    visit = dbw_get(db, strOss+'/'+dbTimesMinutes[i]);
+                    if (visit.length() > 0) {
+                      if(c.DEBUG_LOGS && lineType == 1) cout << "C Found -Minutes-: " << strOss << '/' << dbTimesMinutes[i] << " =" << visit << "#" << endl;
+                      /// Delete the current Key in DB
+                      dbw_remove(db, strOss+'/'+dbTimesMinutes[i]);
+                    }
                   }
-                  /// SUM nb visit from minutes to day
-                  sscanf(visit.c_str(), "%d", &iVisit);
-                  dayVisit += iVisit;
                 }
-              }
+								/// Remove old 10 minutes stats
+                if (ditr <= dateToHold) {
+                  for(i=0;i<DB_TIMES_SIZE;i++) {
+                    // Search Key in DB
+                    visit = dbw_get(db, strOss+'/'+dbTimes[i]);
+                    if (visit.length() > 0) {
+                      if(c.DEBUG_LOGS && lineType == 1) cout << "C Found -Dec-: " << strOss << '/' << dbTimes[i] << " =" << visit << "#" << endl;
+                      /// Delete the current Key in DB
+                      dbw_remove(db, strOss+'/'+dbTimes[i]);
+                    }
+                  }
+                }
+                /// Compress hours stats
+                for(i=0;i<DB_TIMES_HOURS_SIZE;i++) {
+                  // Search Key in DB
+                  visit = dbw_get(db, strOss+'/'+dbTimesHours[i]);
+                  if (visit.length() > 0) {
+                    if(c.DEBUG_LOGS && lineType == 1) cout << "C Found -Hours-: " << strOss << '/' << dbTimesHours[i] << " =" << visit << "#" << endl;
+                    /// Remove old hours stats
+                		if (ditr <= dateToHoldHours) {
+								      /// Delete the current Key in DB
+                      dbw_remove(db, strOss+'/'+dbTimesHours[i]);
+                    }
+                    /// SUM nb visit from hours to days
+                    sscanf(visit.c_str(), "%d", &iVisit);
+                    dayVisit += iVisit;
+                  }
+                }
           
-              if (dayVisit > 0) {
-                /// Add nb day visits in DB
-                if (dbw_add(db, strOss, boost::lexical_cast<string>(dayVisit))) {
-                  if(c.DEBUG_LOGS && lineType == 1) cout << "C Added: " << strOss << " = " << dayVisit << endl;
+                if (dayVisit > 0) {
+                  /// Add nb day visits in DB
+                  if (dbw_add(db, strOss, boost::lexical_cast<string>(dayVisit))) {
+                    if(c.DEBUG_LOGS && lineType == 1) cout << "C Added: " << strOss << " = " << dayVisit << endl;
+                  }
                 }
+                oss.str("");
               }
-              oss.str("");
             }
           }
           
@@ -1777,16 +1842,16 @@ void compressionThread(const Config c) {
               /// lineType=2 -> URL with return code "302"
               /// lineType=3 -> URL with return code "404"
               dayVisit = 0;
-              oss << *it << '/' << lineType << '/' << ditr->year() << "-" << setfill('0') << setw(2) << monthNumber
+              oss << *it << '/' << lineType << '/' << ditr->year() << "-" << setfill('0') << setw(2) << ditr->month()
                   << "-" << setfill('0') << setw(2) << ditr->day();
               strOss = oss.str();
-              for(i=0;i<DB_TIMES_SIZE;i++) {
+              for(i=0;i<DB_TIMES_HOURS_SIZE;i++) {
                 // Search Key in DB
-                visit = dbw_get(db, strOss+'/'+dbTimes[i]);
+                visit = dbw_get(db, strOss+'/'+dbTimesHours[i]);
                 if (visit.length() > 0) {
-                  if (ditr <= dateToHold) {
+                  if (ditr <= dateToHoldHours) {
                     /// Delete the current Key in DB
-                    dbw_remove(db, strOss+'/'+dbTimes[i]);
+                    dbw_remove(db, strOss+'/'+dbTimesHours[i]);
                     if(c.DEBUG_LOGS && lineType == 1) cout << "C Full delete: " << strOss << endl;
                   }
                 }
@@ -1799,7 +1864,7 @@ void compressionThread(const Config c) {
 		      cout << " Flushing... ";
           dbw_flush(db);
           cout << "done" << endl;
-		    }
+        }
       
         /// DB compression
         //cout << "DB compaction... " << flush;

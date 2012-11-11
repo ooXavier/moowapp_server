@@ -22,7 +22,7 @@
 // mooWApp
 #include "global.h"
 #include "configuration.h"
-#include "db_access_berkeleydb.h" // -1.8.1
+#include "db_access_berkeleydb.h"
 #include "log_reader.h"
 
 using namespace std;
@@ -43,6 +43,7 @@ string findExtInLine(map<string, set<string> > &mapExtensions, const string &lin
   } else {
     subLine = line;
   }
+  boost::algorithm::to_lower(subLine); // lower case the url before extension search
   
   /// Search extension in map
   size_t foundExt;
@@ -62,8 +63,38 @@ string findExtInLine(map<string, set<string> > &mapExtensions, const string &lin
 }
 
 /*!
+ * \fn void insertLogLine(SslLog &logLine, set<string> &setModules)
+ * \brief Insert a new row of visit in stat DB (or do a +1 on an existing line).
+ *
+ * \param[in] c Config object.
+ * \param[in] strLog String format of log line to insert in DB.
+ */
+bool insertLogLine(Config &c, const string strLog) {
+  string val = dbw_get(db, strLog);
+  if (val.length() > 0) { // If Key already exist in db add +1 visit
+    if (c.DEBUG_LOGS) cout << " =" << val << " +1 " << endl;
+    int iVisit = 0;
+	  char buffer[10];
+    sscanf(val.c_str(), "%d", &iVisit);
+    memset(buffer, 0, sizeof buffer);
+    sprintf(buffer, "%d", iVisit+1);
+    val = buffer;
+  } else { // else insert new key with 1 visit  
+    val = "1";
+    if (c.DEBUG_LOGS) cout << " Set to 1 " << endl;
+  }
+
+  if (!dbw_add(db, strLog, val))
+    cerr << "db.error().name()" << endl;
+  
+	if (val == "1") return true;
+	return false;
+}
+
+
+/*!
  * \fn bool analyseLine(Config c, const string line, set<string> &setModules)
- * \brief Convert a line of a log file to a new row of visit in stat DB (or do a +1 on an existing line).
+ * \brief Create a SslLog object from a line of a log file and call insertLogLine.
  *
  * \param[in] c Config object.
  * \param[in] line to be analysed.
@@ -105,9 +136,8 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   if (c.DEBUG_LOGS) cout << "> Url: " << strs[6];
   
   //cout << "line: " << line << endl;
-  char buffer[10];
-  unsigned int iHour = 0, iMin = 0;
-  /*unsigned int day, year;
+  /*unsigned int iHour = 0, iMin = 0;
+  unsigned int day, year;
   char month[4];
   char url[2084];
   char prenom[36];
@@ -136,16 +166,13 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   boost::date_time::format_date_parser<boost::gregorian::date, char> parser(format, std::locale("C"));
   boost::date_time::special_values_parser<boost::gregorian::date, char> svp;
   boost::gregorian::date d = parser.parse_date(datev[0], format, svp);
-  //boost::gregorian::date d (year, month, day);///= parser.parse_date(s_date, format, svp);///datev[0], format, svp);
   logLine.date_d = to_iso_extended_string(d); // Save date to YYYY-MM-DD with zeros
   
   // Get Time
-  if (datev[1] != "00") datev[1].erase (0, datev[1].find_first_not_of ("0")); // ltrim of leading zeros on hour
-  if (datev[2] != "00") datev[2].erase (0, datev[2].find_first_not_of ("0")); // ltrim of leading zeros on minutes
-  sscanf(datev[1].c_str(), "%d", &iHour);
-  sscanf(datev[2].c_str(), "%d", &iMin);
-  boost::spirit::karma::generate(std::back_inserter(logLine.date_t), boost::spirit::karma::int_, (iHour*10) + floor(iMin/10)); // Convert float addition to string
-  
+  logLine.date_t_minutes = datev[1] + datev[2]; // Minutes mode
+  logLine.date_t = datev[1] + datev[2][0]; // 10 Minutes mode
+  logLine.date_t_hours = datev[1]; // Hours mode
+	
   // Get Module
   size_t slash = strs[6].find("/", 1);
   if (slash == string::npos) return false;
@@ -158,30 +185,18 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   logLine.responseDuration = strs[10];*/
   
   // Set Key
-  logLine.logKey = logLine.app+'/'+logLine.group+'/'+logLine.type+'/'+logLine.date_d+'/'+logLine.date_t;
+  logLine.logKey = logLine.app+'/'+logLine.group+'/'+logLine.type+'/'+logLine.date_d+'/';
   
   if (c.DEBUG_LOGS) cout << " in App: " << logLine.app << " at " << logLine.date_d << " " << logLine.date_t
-                         << " as " << logLine.group << " " << logLine.type << " (key set as " << logLine.logKey << ")" << flush;
+                         << " as " << logLine.group << " " << logLine.type << " (key set as " << logLine.logKey << logLine.date_t_minutes << ")" << flush;
   
-  string val = dbw_get(db, logLine.logKey);
-  if (val.length() > 0) { // If Key already exist in db add +1 visit
-    if (c.DEBUG_LOGS) cout << " =" << val << " +1 " << endl;
-    int iVisit = 0;
-    sscanf(val.c_str(), "%d", &iVisit);
-    memset(buffer, 0, sizeof buffer);
-    sprintf(buffer, "%d", iVisit+1);
-    val = buffer;
-  } else { // else insert new key with 1 visit  
-    val = "1";
-    if (c.DEBUG_LOGS) cout << " Set to 1 " << endl;
-    
+  insertLogLine(c, logLine.logKey+logLine.date_t_minutes);
+  insertLogLine(c, logLine.logKey+logLine.date_t);
+  if (insertLogLine(c, logLine.logKey+logLine.date_t_minutes)) {
     /// Add module in list if not exist
     setModules.insert(logLine.app);
   }
-  
-  if (!dbw_add(db, logLine.logKey, val))
-    cerr << "db.error().name()" << endl;
-  
+
   return true;
 }
 

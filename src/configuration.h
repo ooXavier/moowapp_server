@@ -38,7 +38,9 @@ public:
   bool COMPRESSION;
   int LOGS_READ_INTERVAL; //!< in seconds
   static const int LOGS_COMPRESSION_INTERVAL = 5; //!< in minutes
-  static const int DAYS_FOR_DETAILS = 7; //!< Days of non compressed stats stored
+  static const int DAYS_FOR_MINUTES_DETAILS = 3; //!< Days of non compressed stats stored in 1 minute format
+  static const int DAYS_FOR_DETAILS = 7; //!< Days of non compressed stats stored in 10 minutes format
+  static const int DAYS_FOR_HOURS_DETAILS = 31; //!< Days of non compressed stats stored in hour format
   std::string LISTENING_PORT; //!< Server listening port
   std::string LOG_FILE_FORMAT; //!< Format of the log file
   std::string LOG_FILE_PATH;
