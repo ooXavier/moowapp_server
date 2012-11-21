@@ -1,12 +1,15 @@
-                     __        ___                
- _ __ ___   ___   ___\ \      / / \   _ __  _ __  
-| '_ ` _ \ / _ \ / _ \\ \ /\ / / _ \ | '_ \| '_ \ 
-| | | | | | (_) | (_) |\ V  V / ___ \| |_) | |_) |
-|_| |_| |_|\___/ \___/  \_/\_/_/   \_\ .__/| .__/ 
-                                     |_|   |_|
-
-# Web Statistics DB Server aka : mooWApp
+Web Statistics DB Server aka : mooWApp       {#index}
+======================================
 By 2011-2012 ooXavier
+
+<pre>
+                       __        __ _                  
+ _ __ ___    ___    ___\ \      / // \    _ __   _ __  
+| '_ ` _ \  / _ \  / _ \\\ \ /\ / // _ \  | '_ \ | '_ \ 
+| | | | | || (_) || (_) |\ V  V // ___ \ | |_) || |_) |
+|_| |_| |_| \\___/  \\___/  \\_/\\_//_/   \\_\\| .__/ | .__/ 
+                                         |_|    |_|    
+</pre>
 
 [![Build Status](https://secure.travis-ci.org/ooXavier/moowapp_server.png)](http://travis-ci.org/ooXavier/moowapp_server)
 
