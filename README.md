@@ -21,28 +21,40 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 - Administrators can monitor specific pages (filtering log content)
 - RoundRobin mecanism to keep a small DB.
 
-## Manual
-1. Change the configuration.ini to set-up your folder to your web logs files
-2. Download and install BerkeleyDB (or any other db system: Kyoto Cabinet, Google LevelDB, nessDB ...)
+## Installation
+1. Download and install Boost
+2. Download and install BerkeleyDB
 
-    Go to http://www.oracle.com/technetwork/database/berkeleydb/downloads/index-082944.html
-    Download this one "Berkeley DB 5.3.15.NC.tar.gz , without encryption" (34M)
-    $ tar zxvf "Berkeley DB 5.3.15.NC.tar.gz"
-    $ cd db-xxxxxxx
-    $ cd build_unix (or the one adapted to your situation)
-    $ ../dist/configure --prefix="FOLDER TO INSTALL"
-    $ make
-    $ make install
-    (default path are : /usr/local/BerkeleyDB.5.3 for app and /usr/local/BerkeleyDB.5.3/lib for libs)
+	<pre>
+	Go to http://www.oracle.com/technetwork/database/berkeleydb/downloads/index-082944.html
+	Download this one "Berkeley DB 5.3.21.NC.tar.gz , without encryption" (34M)
+	$ tar zxvf "Berkeley DB 5.3.15.NC.tar.gz"
+	$ cd db-xxxxxxx/build_unix
+	$ ../dist/configure --enable-cxx --enable-stl (if you want to change default install folder add --prefix="FOLDER TO INSTALL"-
+	(default path are : /usr/local/BerkeleyDB.5.3 for app with docs and /usr/local/BerkeleyDB.5.3/lib for libs)
+	$ make
+	$ sudo make install
+	</pre>
+
 2. Build mongoose with
 
     cd mongoose && make (linux|bsd|solaris|mac|windows|mingw) && cd ..
 3. Build app with
 
     make
-4. Then run...
+4. Change the configuration.ini to set-up your folder to your web logs files
+5. Then run...
 
     ./moowapp.sh start
+
+## Installation
+
+Start the app with
+    ./moowapp.sh start
+Check if the app is running with
+    ./moowapp.sh status
+Stop with
+    ./moowapp.sh stop
 
 ## Changelogs
 ### V0.1

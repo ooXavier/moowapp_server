@@ -52,12 +52,13 @@ int getDBModules(set<string> &setModules, const string &modulesLine) {
   /// Create a set of all known applications in DB
   string strModules = dbw_get(db, modulesLine);
   
-  if (strModules.length() <= 0)
+  if (strModules.length() <= 0) {
     return 1;
+  }
   
   setModules.clear();
   boost::split(setModules, strModules, boost::is_any_of("/"));
-  
+
   /// Exclude modules configuration
   if (c.EXCLUDE_MOD != "") {
     set<string>::iterator it = setModules.begin();
@@ -1908,7 +1909,9 @@ void readLogThread(const Config c, unsigned long readPos) {
       stringstream(data) >> readPos;
     }
     posFileIn.close();
-  } else cout << "Unable to open pos file." << endl;
+  } else {
+    cout << "Unable to open pos file." << endl;
+  }
   
   try {
     while(true) {
