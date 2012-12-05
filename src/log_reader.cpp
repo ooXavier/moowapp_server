@@ -190,11 +190,12 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   if (c.DEBUG_LOGS) cout << " in App: " << logLine.app << " at " << logLine.date_d << " " << logLine.date_t
                          << " as " << logLine.group << " " << logLine.type << " (key set as " << logLine.logKey << logLine.date_t_minutes << ")" << flush;
   
-  insertLogLine(c, logLine.logKey+logLine.date_t_minutes);
+  insertLogLine(c, logLine.logKey+logLine.date_t_hours);
   insertLogLine(c, logLine.logKey+logLine.date_t);
   if (insertLogLine(c, logLine.logKey+logLine.date_t_minutes)) {
     /// Add module in list if not exist
     setModules.insert(logLine.app);
+    if (c.DEBUG_LOGS) cout << " +1 module for " << logLine.app << flush;
   }
 
   return true;

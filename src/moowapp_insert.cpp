@@ -66,20 +66,24 @@ int main(int argc, char* argv[]) {
       /// For each log file matching name parse lines
       founds = fileName.find(c.FILTER_SSL);
       if (ok && founds!=string::npos) {
-        cout << fileName;
+        cout << "Reading " << fileName << " ..." << flush;
         readLogFile(c, itr->path().string(), setModules);
-        cout << endl;
+        cout << " done." << endl;
       }
     }
-  }
+    } else {
+      cerr << "Wrong set up. Directory " << dir_path << " does not exists." << endl;
+    }
   
   /// Update list of modules in DB
   strModules = "";
-  itLast = --setModules.end();
-  for(it=setModules.begin(); it!=setModules.end(); it++) {
-    strModules += *it;
-    if (it != itLast) {// do not add ending slash to the last item
-      strModules += "/";
+  if (setModules.size() > 0) {
+    itLast = --setModules.end();
+    for(it=setModules.begin(); it!=setModules.end(); it++) {
+      strModules += *it;
+      if (it != itLast) {// do not add ending slash to the last item
+        strModules += "/";
+      }
     }
   }
   cout << "NB Modules: " << (int) setModules.size() << endl;
