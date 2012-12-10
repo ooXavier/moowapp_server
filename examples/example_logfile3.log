@@ -1,0 +1,21 @@
+195.5.112.165 - - [21/Nov/2012:03:13:17 +0200] "GET /manage_one/script/scripts.js HTTP/1.1" 304 - 1376
+195.5.112.165 - - [21/Nov/2012:03:13:54 +0200] "GET /manage_one/style/styles.css HTTP/1.1" 304 - 1373
+195.5.112.165 - - [21/Nov/2012:07:51:00 +0200] "GET /manage_two/image/background.png HTTP/1.1" 304 - 1307
+195.5.112.165 - - [21/Nov/2012:09:04:12 +0200] "GET /manage_three/script/scripts.js HTTP/1.1" 304 - 1697
+195.5.112.165 - - [21/Nov/2012:09:22:30 +0200] "GET /manage_four/style/styles.css HTTP/1.1" 304 - 1431
+195.5.112.165 - - [21/Nov/2012:12:16:56 +0200] "GET /manage_two/script/scripts.js HTTP/1.1" 304 - 793
+195.5.112.165 - - [21/Nov/2012:13:56:41 +0200] "GET /manage_five/script/scripts.js HTTP/1.1" 304 - 920
+195.5.112.165 - - [21/Nov/2012:13:58:12 +0200] "GET /manage_five/style/styles.css HTTP/1.1" 304 - 853
+195.5.112.165 - - [21/Nov/2012:14:56:43 +0200] "GET /manage_six/style/styles.css HTTP/1.1" 304 - 1133
+195.5.112.165 - - [21/Nov/2012:14:58:34 +0200] "GET /manage_five/images/retour.JPG HTTP/1.1" 304 - 927
+195.5.112.165 - - [21/Nov/2012:15:57:24 +0200] "GET /manage_five/images/picto-quitter01.png HTTP/1.1" 304 - 1424
+10.215.225.235 - - [21/Nov/2012:23:11:31 +0200] "POST /test_logs/RiaController HTTP/1.1" 200 - 17518
+195.5.112.165 - - [21/Nov/2012:23:48:55 +0200] "GET /manage_five_contrat/script/scripts.JS HTTP/1.1" 304 - 1336
+10.255.72.103 - - [22/Nov/2012:07:42:55 +0100] "GET /manage_seven/manage_seven-event.do HTTP/1.1" 302 - 264220 ON SSL_RSA_WITH_RC4_128_SHA CN=Gerald UMANEAEDD,OU=FR,OU=EUROPE,O=Group
+10.255.72.103 - - [22/Nov/2012:07:42:56 +0100] "GET /manage_seven/manage_seven.do HTTP/1.1" 200 10567 239508 ON SSL_RSA_WITH_RC4_128_SHA CN=Gerald UMANEAEDD,OU=FR,OU=EUROPE,O=Group
+10.255.72.103 - - [22/Nov/2012:07:42:57 +0100] "GET /manage_seven/script/scripts.js HTTP/1.1" 200 1314 1014 ON SSL_RSA_WITH_RC4_128_SHA CN=Gerald UMANEAEDD,OU=FR,OU=EUROPE,O=Group
+10.255.72.103 - - [22/Nov/2012:07:42:58 +0100] "GET /manage_seven/style/styles.css HTTP/1.1" 200 311 934 ON SSL_RSA_WITH_RC4_128_SHA CN=Gerald UMANEAEDD,OU=FR,OU=EUROPE,O=Group
+10.255.72.103 - - [22/Nov/2012:07:42:58 +0100] "POST /test_logs/RiaController HTTP/1.1" 200 - 23654 ON SSL_RSA_WITH_RC4_128_SHA CN=Gerald UMANEAEDD,OU=FR,OU=EUROPE,O=Group
+10.255.72.103 - - [22/Nov/2012:07:43:00 +0100] "GET /manage_seven/manage_seven-event.do?org.apache.struts.taglib.html.CANCEL= HTTP/1.1" 200 9697 66022 ON SSL_RSA_WITH_RC4_128_SHA CN=Gerald UMANEAEDD,OU=FR,OU=EUROPE,O=Group
+10.255.72.103 - - [22/Nov/2012:12:42:55 +0100] "GET /fcuk/fcuk-event.do HTTP/1.1" 302 - 264220 ON SSL_RSA_WITH_RC4_128_SHA CN=Gerald UMANEAEDD,OU=FR,OU=EUROPE,O=Group
+10.255.72.103 - - [22/Nov/2012:12:42:56 +0100] "GET /fcuk/fcuk.do HTTP/1.1" 200 10567 239508 ON SSL_RSA_WITH_RC4_128_SHA CN=Gerald UMANEAEDD,OU=FR,OU=EUROPE,O=Group

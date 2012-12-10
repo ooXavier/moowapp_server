@@ -47,31 +47,28 @@ std::string findExtInLine(std::map<std::string, std::set<std::string> > &mapExte
  * \fn void insertLogLine(SslLog &logLine, set<string> &setModules)
  * \brief Insert a new row of visit in stat DB (or do a +1 on an existing line).
  *
- * \param[in] c Config object.
  * \param[in] strLog String format of log line to insert in DB.
  */
-bool insertLogLine(Config &c, const std::string strLog);
+bool insertLogLine(const std::string &strLog);
 
 /*!
  * \fn void analyseLine(string line, set<string> &setModules)
  * \brief Filter the usefull stats from a string that represent a line of log
  *
  * \param db The pointer to access the DB.
- * \param c The configuration of the running app.
  * \param line The log line to be parsed.
  * \param setModules The set of web modules already known.
  */
-bool analyseLine(Config c, const std::string line, std::set<std::string> &setModules);
+bool analyseLine(const std::string &line, std::set<std::string> &setModules);
 
 /*!
  * \fn unsigned long readLogFile(string strFile, set<string> &setModules)
  * \brief Read a file and call the line analyser for each line
  *
  * \param db The pointer to access the DB.
- * \param c The configuration of the running app.
  * \param strFile The file to be used as log file.
  * \param setModules The set of web modules already known.
  */
-unsigned long readLogFile(Config c, const std::string strFile, std::set<std::string> &setModules, unsigned long readPos = 0);
+unsigned long readLogFile(const std::string &strFile, std::set<std::string> &setModules, unsigned long readPos = 0);
 
 #endif // MOOWAPP_STATS_LOG_READER_H_

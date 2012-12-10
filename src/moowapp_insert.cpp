@@ -16,7 +16,7 @@
 // mooWApp
 #include "global.h"
 #include "configuration.h"
-#include "db_access_berkeleydb.h" //-1.8.1
+#include "db_access_berkeleydb.h"
 #include "log_reader.h"
 
 using namespace std;

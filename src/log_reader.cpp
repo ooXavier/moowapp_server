@@ -27,6 +27,8 @@
 
 using namespace std;
 
+extern Db *db;
+
 /*!
  * \fn string findExtInLine(map<string, set<string> > &mapExtensions, const string &line)
  * \brief Find an extension configured in a line. Return group name if found.
@@ -66,13 +68,12 @@ string findExtInLine(map<string, set<string> > &mapExtensions, const string &lin
  * \fn void insertLogLine(SslLog &logLine, set<string> &setModules)
  * \brief Insert a new row of visit in stat DB (or do a +1 on an existing line).
  *
- * \param[in] c Config object.
  * \param[in] strLog String format of log line to insert in DB.
  */
-bool insertLogLine(Config &c, const string strLog) {
+bool insertLogLine(const string &strLog) {
   string val = dbw_get(db, strLog);
   if (val.length() > 0) { // If Key already exist in db add +1 visit
-    if (c.DEBUG_LOGS) cout << " =" << val << " +1 " << endl;
+    DEBUG_LOGS(" =" << val << " +1 ");
     int iVisit = 0;
 	  char buffer[10];
     sscanf(val.c_str(), "%d", &iVisit);
@@ -81,7 +82,7 @@ bool insertLogLine(Config &c, const string strLog) {
     val = buffer;
   } else { // else insert new key with 1 visit  
     val = "1";
-    if (c.DEBUG_LOGS) cout << " Set to 1 " << endl;
+    DEBUG_LOGS(" Set to 1 ");
   }
 
   if (!dbw_add(db, strLog, val))
@@ -91,22 +92,23 @@ bool insertLogLine(Config &c, const string strLog) {
 	return false;
 }
 
-
 /*!
- * \fn bool analyseLine(Config c, const string line, set<string> &setModules)
+ * \fn bool analyseLine(const string line, set<string> &setModules)
  * \brief Create a SslLog object from a line of a log file and call insertLogLine.
  *
- * \param[in] c Config object.
  * \param[in] line to be analysed.
  * \param[in, out] setModules set of modules to be updated with the visit inserted in DB.
  */
-bool analyseLine(Config c, const string line, set<string> &setModules) {
+bool analyseLine(const string &line, set<string> &setModules) {
   if (line.length() < 10) return false; // Line not long enough : error
   SslLog logLine;
   
   // Split values to parse
   vector<string> strs;
   boost::split(strs, line, boost::is_any_of(" "));
+  
+  /// Get config object containing the path/name of file to read.
+  Config c = Config::get();
   
   /// Check the filter in the line before going further
   // first extension
@@ -133,7 +135,7 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
     }
   }
   
-  if (c.DEBUG_LOGS) cout << "> Url: " << strs[6];
+  DEBUG_LOGS(cout << "> Url: " << strs[6]);
   
   //cout << "line: " << line << endl;
   /*unsigned int iHour = 0, iMin = 0;
@@ -187,35 +189,37 @@ bool analyseLine(Config c, const string line, set<string> &setModules) {
   // Set Key
   logLine.logKey = logLine.app+'/'+logLine.group+'/'+logLine.type+'/'+logLine.date_d+'/';
   
-  if (c.DEBUG_LOGS) cout << " in App: " << logLine.app << " at " << logLine.date_d << " " << logLine.date_t
-                         << " as " << logLine.group << " " << logLine.type << " (key set as " << logLine.logKey << logLine.date_t_minutes << ")" << flush;
+  DEBUG_LOGS(" in App: " << logLine.app << " at " << logLine.date_d << " " << logLine.date_t
+                         << " as " << logLine.group << " " << logLine.type << " (key set as " << logLine.logKey << logLine.date_t_minutes << ")");
   
-  insertLogLine(c, logLine.logKey+logLine.date_t_hours);
-  insertLogLine(c, logLine.logKey+logLine.date_t);
-  if (insertLogLine(c, logLine.logKey+logLine.date_t_minutes)) {
+  string str = logLine.logKey+logLine.date_t_hours;
+  insertLogLine(str);
+  str = logLine.logKey+logLine.date_t;
+  insertLogLine(str);
+  str = logLine.logKey+logLine.date_t_minutes;
+  if (insertLogLine(str)) {
     /// Add module in list if not exist
     setModules.insert(logLine.app);
-    if (c.DEBUG_LOGS) cout << " +1 module for " << logLine.app << flush;
+    DEBUG_LOGS(" +1 module for " << logLine.app);
   }
 
   return true;
 }
 
 /*!
- * \fn unsigned long readLogFile(Config c, const string strFile, set<string> &setModules, unsigned long readPos)
+ * \fn unsigned long readLogFile(const string strFile, set<string> &setModules, unsigned long readPos)
  * \brief Read a log file and analyse every line starting at a specified position.
  *
- * \param[in] c Config object.
  * \param[in] strFile.
  * \param[in, out] setModules set of modules.
  * \param[in] readPos.
  */
-unsigned long readLogFile(Config c, const string strFile, set<string> &setModules, unsigned long readPos) {
+unsigned long readLogFile(const string &strFile, set<string> &setModules, unsigned long readPos) {
   char * buffer;
   unsigned long size, lSize;
   FILE * pFile = fopen(strFile.c_str(), "rb");
   if (pFile == NULL) {
-    cerr << "Error opening file: "<< strFile << endl;
+    cerr << "Error opening file: " << strFile << endl;
     return 0;
   }
   
@@ -244,14 +248,14 @@ unsigned long readLogFile(Config c, const string strFile, set<string> &setModule
   int i = 0; // nb of lines in file
   int myI = 0; // nb of lines matching stg
   
-  if (c.DEBUG_LOGS) cout << "> Parsing logs" << endl;
+  DEBUG_LOGS("> Parsing logs");
   
   string linedata;
   for (unsigned long j=0; j<lSize; j++) { // loop thru the buffer
     linedata.push_back(buffer[j]); // push character into string
     if(buffer[j] == 13 || buffer[j] == 10) { // until we hit newline
       const string str = linedata;
-      if (analyseLine(c, str, setModules)) myI++;
+      if (analyseLine(str, setModules)) myI++;
       i++;
       linedata.clear(); // Clear "temporary string"
     }

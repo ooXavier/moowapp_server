@@ -11,6 +11,7 @@
 
 // Boost
 #include <boost/algorithm/string.hpp> // Split
+#include <boost/lexical_cast.hpp> // lexical_cast
 
 #include "global.h"
 #include "configuration.h"
@@ -57,10 +58,6 @@ Config::Config(string cfgFile) {
   }
   fclose (pFile);
   
-  DEBUG_LOGS = (mapConf.find("DEBUG_LOGS") != mapConf.end()) ? (mapConf["DEBUG_LOGS"] == "true") ? true : false : false;
-  DEBUG_REQUESTS = (mapConf.find("DEBUG_REQUESTS") != mapConf.end()) ? (mapConf["DEBUG_REQUESTS"] == "true") ? true : false : false;
-  DEBUG_APP_OTHERS = (mapConf.find("DEBUG_APP_OTHERS") != mapConf.end()) ? (mapConf["DEBUG_APP_OTHERS"] == "true") ? true : false : false;
-  
   DB_PATH   = (mapConf.find("DB_PATH") != mapConf.end()) ? mapConf["DB_PATH"] : "/data/";
   DB_NAME   = (mapConf.find("DB_NAME") != mapConf.end()) ? mapConf["DB_NAME"] : "storage.db";
   FILTER_PATH = (mapConf.find("FILTER_PATH") != mapConf.end()) ? mapConf["FILTER_PATH"] : ".";
@@ -88,8 +85,22 @@ Config::Config(string cfgFile) {
   
   COMPRESSION = (mapConf.find("COMPRESSION") != mapConf.end()) ? (mapConf["COMPRESSION"] == "on") ? true : false : false;
   LISTENING_PORT = (mapConf.find("LISTENING_PORT") != mapConf.end()) ? mapConf["LISTENING_PORT"] : "9999";
-  LOG_FILE_FORMAT = (mapConf.find("LOG_FILE_FORMAT") != mapConf.end()) ? mapConf["LOG_FILE_FORMAT"] : "timestamp";
-  LOG_FILE_PATH = (mapConf.find("LOG_FILE_PATH") != mapConf.end()) ? mapConf["LOG_FILE_PATH"] : "myFile.txt";
+  
+  unsigned short logFileNb = 1;
+  if (mapConf.find("LOGS_FILES_NB") != mapConf.end()) {
+    sscanf(mapConf["LOGS_FILES_NB"].c_str(), "%hd", &logFileNb);
+    if (logFileNb < 1) logFileNb = 1;
+  }
+  LOGS_FILES_NB = logFileNb;
+  for (unsigned short i = 1; i <= logFileNb; i++) {
+    string strI = boost::lexical_cast<std::string>(i);
+    LOGS_FILES_CONFIG.insert( make_pair(i,
+      make_pair(
+        (mapConf.find("LOG_FILE_FORMAT."+strI) != mapConf.end()) ? mapConf["LOG_FILE_FORMAT."+strI] : "timestamp" ,
+        (mapConf.find("LOG_FILE_PATH."+strI) != mapConf.end()) ? mapConf["LOG_FILE_PATH."+strI] : "myFile.log."+strI
+      )
+    ));
+  }
   
   int val = 10;
   if (mapConf.find("LOGS_READ_INTERVAL") != mapConf.end()) {
@@ -98,3 +109,4 @@ Config::Config(string cfgFile) {
   LOGS_READ_INTERVAL = val;
 }
 
+Config Config::singleton;

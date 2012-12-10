@@ -19,10 +19,6 @@
 class Config
 {
 public:
-  bool DEBUG_LOGS; //!< Log mode?
-  bool DEBUG_REQUESTS; //!< Log incoming requests
-  bool DEBUG_APP_OTHERS; //!< Log apps
-  
   std::string DB_PATH; //!< PATH to db's folder
   std::string DB_NAME; //!< Name of db file
   
@@ -42,9 +38,17 @@ public:
   static const int DAYS_FOR_DETAILS = 7; //!< Days of non compressed stats stored in 10 minutes format
   static const int DAYS_FOR_HOURS_DETAILS = 31; //!< Days of non compressed stats stored in hour format
   std::string LISTENING_PORT; //!< Server listening port
-  std::string LOG_FILE_FORMAT; //!< Format of the log file
-  std::string LOG_FILE_PATH;
+  unsigned short LOGS_FILES_NB; //!< Number of logs files
+  std::map<unsigned short, std::pair<std::string, std::string> > LOGS_FILES_CONFIG; //!< Formats and paths of logs files
+ 
+  // Getter of singleton
+  static Config &get() throw() {
+    return singleton;
+  }
 
+private:
+  static Config singleton;
+  
   /*!
    * \fn Config(std::string cfgFile = "configuration.ini")
    * \brief Read a file and set-up configuration values
@@ -53,8 +57,6 @@ public:
    */
   Config(std::string cfgFile = "configuration.ini");
 
-private:
-
   /*!
    * \fn void trimInfo(string& s)
    * \brief Remove leading and trailing whitespace
@@ -62,6 +64,10 @@ private:
    * \param s The string to clean from whitespaces.
    */
   void trimInfo(std::string& s);
+  
+  // Protection against copy -> Do not define these
+  //Config(const Config&);
+  void operator=(const Config&);
 
 };
 

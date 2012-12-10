@@ -7,6 +7,18 @@
 #ifndef MOOWAPP_STATS_GLOBAL_H_
 #define MOOWAPP_STATS_GLOBAL_H_
 
+#ifdef DEBUG_LOGS
+#define DEBUG_LOGS(str) do { std::cout << str << std::endl; } while( false )
+#else
+#define DEBUG_LOGS(str) do { } while ( false )
+#endif
+
+#ifdef DEBUG_REQ
+#define DEBUG_REQ(str) do { std::cout << str << std::endl; } while( false )
+#else
+#define DEBUG_REQ(str) do { } while ( false )
+#endif
+
 static const std::string format("%d/%b/%Y");
 
 static const char *standard_json_reply = "HTTP/1.1 200 OK\r\n"
