@@ -1,5 +1,5 @@
 /*!
- * \file db_access.cpp
+ * \file bdb_access.cpp
  * \brief Wrapper to access DB functions
  * \author Xavier ETCHEBER
  */
@@ -13,11 +13,11 @@
 // database
 #include <db_cxx.h>
 
-#define VAL_MAX_VALUE_SIZE 100
+#include "db_access_berkeleydb.h"
 
 using namespace std;
 
-Db * dbw_open(const string baseDir, const string dbFileName) {
+bool DBAccessBerkeley::dbw_open(const string baseDir, const string bdbFileName) {
   /// Setup the database environment
   u_int32_t env_flags =
     DB_CREATE     |   // If the environment does not exist, create it.
@@ -33,28 +33,28 @@ Db * dbw_open(const string baseDir, const string dbFileName) {
     env->set_error_stream(&cerr); // Redirect debugging information to std::cerr
     
     /// Open the database
-    Db *db = new Db(env, 0);
-    u_int32_t db_flags =
-      DB_CREATE     |   // If the db does not exist, create it.
+    bdb = new Db(env, 0);
+    u_int32_t bdb_flags =
+      DB_CREATE     |   // If the bdb does not exist, create it.
       DB_THREAD;        // free-threaded (thread-safe)
-    db->open(NULL, dbFileName.c_str(), NULL, DB_BTREE, db_flags, 0);
-    cout << "DB " << baseDir << dbFileName << " connected" << endl;
-    return db;
+    bdb->open(NULL, bdbFileName.c_str(), NULL, DB_BTREE, bdb_flags, 0);
+    cout << "DB " << baseDir << bdbFileName << " connected" << endl;
+    return true;
   }
   // DbException is not a subclass of std::exception, so we
   // need to catch them both.
   catch(DbException &e) {
-    cerr << "Error opening database: " << baseDir << dbFileName << endl;
+    cerr << "Error opening database: " << baseDir << bdbFileName << endl;
     cerr << e.what() << endl;
   } catch(exception &e) {
-    cerr << "Error opening database: " << baseDir << dbFileName << endl;
+    cerr << "Error opening database: " << baseDir << bdbFileName << endl;
     cerr << e.what() << endl;
   }
   
-  return NULL;
+  return false;
 }
 
-string dbw_get(Db *db, const string strKey, const int flags) {
+string DBAccessBerkeley::dbw_get(const string strKey, const int flags) {
   Dbt key(const_cast<char*>(strKey.data()), strKey.size());
   
   Dbt data;
@@ -70,7 +70,7 @@ string dbw_get(Db *db, const string strKey, const int flags) {
 
   try {
     /// Get value from DB
-    if (db->get(NULL, &key, &data, 0) != DB_NOTFOUND) {
+    if (bdb->get(NULL, &key, &data, 0) != DB_NOTFOUND) {
       string strRes((const char *)data.get_data(), data.get_size()-1);
       if (flags != 0) {
         free(data.get_data());
@@ -80,115 +80,115 @@ string dbw_get(Db *db, const string strKey, const int flags) {
   } catch(DbMemoryException &e) {
     /// DbMemoryException: If value is longer than DEFAULT length, re-try with flag for DB_DBT_MALLOC
     if (flags == 0) {
-      return dbw_get(db, strKey, 1);
+      return dbw_get(strKey, 1);
     } else {
-      cerr << "DB Error DbMemoryException on db->get(key=" << strKey << ") with DB_DBT_MALLOC set." << endl;
+      cerr << "DB Error DbMemoryException on bdb->get(key=" << strKey << ") with DB_DBT_MALLOC set." << endl;
       cerr << e.what() << endl;
     }
   } catch(DbDeadlockException &e) {
-    cerr << "DB Error DbDeadlockException on db->get(key=" << strKey << ")." << endl;
+    cerr << "DB Error DbDeadlockException on bdb->get(key=" << strKey << ")." << endl;
     cerr << e.what() << endl;
   } catch(DbLockNotGrantedException &e) {
-    cerr << "DB Error DbLockNotGrantedException on db->get(key=" << strKey << ")." << endl;
+    cerr << "DB Error DbLockNotGrantedException on bdb->get(key=" << strKey << ")." << endl;
     cerr << e.what() << endl;
   } catch(DbRepHandleDeadException &e) {
-    cerr << "DB Error DbRepHandleDeadException on db->get(key=" << strKey << ")." << endl;
+    cerr << "DB Error DbRepHandleDeadException on bdb->get(key=" << strKey << ")." << endl;
     cerr << e.what() << endl;
   } catch(DbException &e) {
-    cerr << "DB Error DbException on db->get(key=" << strKey << ")." << endl;
+    cerr << "DB Error DbException on bdb->get(key=" << strKey << ")." << endl;
     cerr << e.what() << endl;
   }
   return "";
 }
 
-int dbw_add(Db *db, const string strKey, const string strValue) { 
+int DBAccessBerkeley::dbw_add(const string strKey, const string strValue) { 
   Dbt key(const_cast<char*>(strKey.data()), strKey.size());
   Dbt data(const_cast<char*>(strValue.data()), strValue.size()+1);
   
   try {
-    if (db->put(NULL, &key, &data, 0) == 0) {
+    if (bdb->put(NULL, &key, &data, 0) == 0) {
       return true;
     }
   } catch(DbDeadlockException &e) {
-    cerr << "DB Error DbDeadlockException on db->put(key=" << strKey << ", value=" << strValue << ")." << endl;
+    cerr << "DB Error DbDeadlockException on bdb->put(key=" << strKey << ", value=" << strValue << ")." << endl;
     cerr << e.what() << endl;
   } catch(DbLockNotGrantedException &e) {
-    cerr << "DB Error DbLockNotGrantedException on db->put(key=" << strKey << ", value=" << strValue << ")." << endl;
+    cerr << "DB Error DbLockNotGrantedException on bdb->put(key=" << strKey << ", value=" << strValue << ")." << endl;
     cerr << e.what() << endl;
   } catch(DbRepHandleDeadException &e) {
-    cerr << "DB Error DbRepHandleDeadException on db->put(key=" << strKey << ", value=" << strValue << ")." << endl;
+    cerr << "DB Error DbRepHandleDeadException on bdb->put(key=" << strKey << ", value=" << strValue << ")." << endl;
     cerr << e.what() << endl;
   } catch(DbException &e) {
-    cerr << "DB Error DbException on db->put(key=" << strKey << ", value=" << strValue << ")." << endl;
+    cerr << "DB Error DbException on bdb->put(key=" << strKey << ", value=" << strValue << ")." << endl;
     cerr << e.what() << endl;
   }
   return false;
 }
 
-void dbw_remove(Db *db, const string strKey) {
+void DBAccessBerkeley::dbw_remove(const string strKey) {
   Dbt key(const_cast<char*>(strKey.data()), strKey.size());
   try {
-    db->del(NULL, &key, 0);
+    bdb->del(NULL, &key, 0);
   } catch(DbDeadlockException &e) {
-    cerr << "DB Error DbDeadlockException on db->del(key=" << strKey << ")." << endl;
+    cerr << "DB Error DbDeadlockException on bdb->del(key=" << strKey << ")." << endl;
     cerr << e.what() << endl;
   } catch(DbLockNotGrantedException &e) {
-    cerr << "DB Error DbLockNotGrantedException on db->del(key=" << strKey << ")." << endl;
+    cerr << "DB Error DbLockNotGrantedException on bdb->del(key=" << strKey << ")." << endl;
     cerr << e.what() << endl;
   } catch(DbRepHandleDeadException &e) {
-    cerr << "DB Error DbRepHandleDeadException on db->del(key=" << strKey << ")." << endl;
+    cerr << "DB Error DbRepHandleDeadException on bdb->del(key=" << strKey << ")." << endl;
     cerr << e.what() << endl;
   } catch(DbException &e) {
-    cerr << "DB Error DbException on db->del(key=" << strKey << ")." << endl;
+    cerr << "DB Error DbException on bdb->del(key=" << strKey << ")." << endl;
     cerr << e.what() << endl;
   }
   return;
 }
 
-void dbw_flush(Db *db) {
+void DBAccessBerkeley::dbw_flush() {
   // Flush data
   try {
-    if (db->sync(0) != 0)
+    if (bdb->sync(0) != 0)
       cout << "DB Flush failed" << endl;
   } catch(DbDeadlockException &e) {
-    cerr << "DB Error DbDeadlockException on db->sync()." << endl;
+    cerr << "DB Error DbDeadlockException on bdb->sync()." << endl;
     cerr << e.what() << endl;
   } catch(DbRepHandleDeadException &e) {
-    cerr << "DB Error DbRepHandleDeadException on db->sync()." << endl;
+    cerr << "DB Error DbRepHandleDeadException on bdb->sync()." << endl;
     cerr << e.what() << endl;
   } catch(DbException &e) {
-    cerr << "DB Error DbException on db->sync()." << endl;
+    cerr << "DB Error DbException on bdb->sync()." << endl;
     cerr << e.what() << endl;
   }
 }
 
-void dbw_compact(Db *db) {
-  // Compact db 
+void DBAccessBerkeley::dbw_compact() {
+  // Compact bdb 
   try {
     //TODO: Add a configuration variable to do either a simple compact() task or a delete/full re-insert
-    if (db->compact(NULL, NULL, NULL, NULL, DB_FREE_SPACE, NULL) != 0) {
+    if (bdb->compact(NULL, NULL, NULL, NULL, DB_FREE_SPACE, NULL) != 0) {
       cout << "DB Compaction failed" << endl;
     }
   } catch(DbDeadlockException &e) {
-    cerr << "DB Error DbDeadlockException on db->compact()." << endl;
+    cerr << "DB Error DbDeadlockException on bdb->compact()." << endl;
     cerr << e.what() << endl;
   } catch(DbLockNotGrantedException &e) {
-    cerr << "DB Error DbLockNotGrantedException on db->compact()." << endl;
+    cerr << "DB Error DbLockNotGrantedException on bdb->compact()." << endl;
     cerr << e.what() << endl;
   } catch(DbRepHandleDeadException &e) {
-    cerr << "DB Error DbRepHandleDeadException on db->compact()." << endl;
+    cerr << "DB Error DbRepHandleDeadException on bdb->compact()." << endl;
     cerr << e.what() << endl;
   } catch(DbException &e) {
-    cerr << "DB Error DbException on db->compact()." << endl;
+    cerr << "DB Error DbException on bdb->compact()." << endl;
     cerr << e.what() << endl;
   }
 }
 
-void dbw_close(Db *db) {
+void DBAccessBerkeley::dbw_close() {
   try {
-    if (db != NULL) {
-      // Close the db
-      db->close(0);
+    if (bdb != NULL) {
+      // Close the bdb
+      bdb->close(0);
     }
   } catch(DbException &e) {
     cerr << "Error closing database." << endl;
@@ -199,6 +199,12 @@ void dbw_close(Db *db) {
   }
 }
 
-void dbw_drop(const char *basedir) {
-  //db_drop(basedir);
+void DBAccessBerkeley::dbw_drop(const char *basedir) {
+  //bdb_drop(basedir);
 }
+
+DBAccessBerkeley::DBAccessBerkeley() {
+  bdb = NULL;
+}
+
+DBAccessBerkeley DBAccessBerkeley::singleton;

@@ -27,8 +27,6 @@
 
 using namespace std;
 
-extern Db *db;
-
 /*!
  * \fn string findExtInLine(map<string, set<string> > &mapExtensions, const string &line)
  * \brief Find an extension configured in a line. Return group name if found.
@@ -71,7 +69,10 @@ string findExtInLine(map<string, set<string> > &mapExtensions, const string &lin
  * \param[in] strLog String format of log line to insert in DB.
  */
 bool insertLogLine(const string &strLog) {
-  string val = dbw_get(db, strLog);
+  // Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+  
+  string val = dbA.dbw_get(strLog);
   if (val.length() > 0) { // If Key already exist in db add +1 visit
     DEBUG_LOGS(" =" << val << " +1 ");
     int iVisit = 0;
@@ -85,7 +86,7 @@ bool insertLogLine(const string &strLog) {
     DEBUG_LOGS(" Set to 1 ");
   }
 
-  if (!dbw_add(db, strLog, val))
+  if (!dbA.dbw_add(strLog, val))
     cerr << "db.error().name()" << endl;
   
 	if (val == "1") return true;
@@ -108,7 +109,7 @@ bool analyseLine(const string &line, set<string> &setModules) {
   boost::split(strs, line, boost::is_any_of(" "));
   
   /// Get config object containing the path/name of file to read.
-  Config c = Config::get();
+  Config &c = Config::get();
   
   /// Check the filter in the line before going further
   // first extension

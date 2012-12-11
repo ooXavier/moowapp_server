@@ -35,7 +35,6 @@
 #include "mongoose.h"
 
 using namespace std;
-Db *db = NULL;          //!< DB pointer
 boost::mutex mutex;     //!< Mutex for thread blocking
 struct mg_context *ctx; //!< Pointer of request's context 
 bool quit;              //!< Boolean used to quit server properly
@@ -49,8 +48,11 @@ bool quit;              //!< Boolean used to quit server properly
  * \param[in] modulesLine Key in DB to look for modules.
  */
 int getDBModules(set<string> &setModules, const string &modulesLine) {
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+  
   /// Create a set of all known applications in DB
-  string strModules = dbw_get(db, modulesLine);
+  string strModules = dbA.dbw_get(modulesLine);
   
   if (strModules.length() <= 0) {
     return 1;
@@ -82,8 +84,11 @@ int getDBModules(set<string> &setModules, const string &modulesLine) {
  * \param[in, out] setDeleteModules A set of modules to be deleted from DB storage.
  */
 int removeDBModules(set<string> &setDeleteModules) {
-  //-- Create a set of all known applications in DB
-  string strModules = dbw_get(db, KEY_MODULES);
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+  
+  /// Create a set of all known applications in DB
+  string strModules = dbA.dbw_get(KEY_MODULES);
   
   if (strModules.length() <= 0)
     return 1;
@@ -92,7 +97,7 @@ int removeDBModules(set<string> &setDeleteModules) {
   boost::split(setModules, strModules, boost::is_any_of("/"));
   setModules.erase(""); // Delete empty module
   
-  // Remove "modules to be deleted" from modules set
+  /// Remove "modules to be deleted" from modules set
   set<string>::iterator it, itt;
   for(it=setDeleteModules.begin(); it!=setDeleteModules.end(); it++) {
     for(itt=setModules.begin(); itt!=setModules.end(); itt++) {
@@ -102,13 +107,13 @@ int removeDBModules(set<string> &setDeleteModules) {
     }
   }
   
-  // Convert modules set to DB line
+  /// Convert modules set to DB line
   string value = "";
   for(itt=setModules.begin(); itt!=setModules.end(); itt++) {
     value += (*itt) + "/";
   }
-  dbw_remove(db, KEY_MODULES);
-  dbw_add(db, KEY_MODULES, value);
+  dbA.dbw_remove(KEY_MODULES);
+  dbA.dbw_add(KEY_MODULES, value);
   //cout << "New line: " << value << endl;
   
   // Replace in DB
@@ -433,6 +438,9 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
     return;
   }
   
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+  
   /// Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
   is_jsonp = handle_jsonp(conn, ri);
@@ -529,7 +537,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
             oss << setw(3) << (*itm).first;
           }
           // Search Key (oss) in DB
-          visit = dbw_get(db, oss.str());
+          visit = dbA.dbw_get(oss.str());
           if (visit.length() > 0) {
             // Update nb visit of the app for this day
             iVisit = 0;
@@ -567,7 +575,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
           oss << setw(3) << (*itm).first;
         }
         // Search Key (oss) in DB
-        visit = dbw_get(db, oss.str());
+        visit = dbA.dbw_get(oss.str());
         int iVisit = 0;
         if (visit.length() > 0) {
           // Update nb visit of the app for this day
@@ -600,7 +608,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
           oss << setw(3) << (*itm).first;
         }
         // Search Key (oss) in DB
-        visit = dbw_get(db, oss.str());
+        visit = dbA.dbw_get(oss.str());
         if (visit.length() > 0) {
           // Update nb visit of the app for this day
           iVisit = 0;
@@ -719,6 +727,9 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
     mg_printf(conn, "%s", "Missing parameter: type");
     return;
   }
+
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
   
   /// Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
@@ -795,7 +806,7 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
           // Build Key ex: "application/w/1/2011-04-24/150";
           oss << *it << '/' << strGroup << '/' << strType << "/" << strDateFormated << '/' << dbTimesHours[l];
           // Search Key (oss) in DB
-          visit = dbw_get(db, oss.str());
+          visit = dbA.dbw_get(oss.str());
           iVisit = 0;
           if (visit.length() > 0) {
             sscanf(visit.c_str(), "%d", &iVisit);
@@ -827,7 +838,7 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
         oss << strModule << '/' << strGroup << '/' << strType << "/" << strDateFormated << '/' << dbTimesHours[l];
         //if (c.DEBUG_REQUESTS && l==0) cout << " visits for " << oss.str() << endl;
         /// Search Key (oss) in DB
-        visit = dbw_get(db, oss.str());
+        visit = dbA.dbw_get(oss.str());
         iVisit = 0;
         if (visit.length() > 0) {
           sscanf(visit.c_str(), "%d", &iVisit);
@@ -855,7 +866,7 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
         /// Build Key ex: "application/w/1/2011-04-24/150";
         oss << *it << '/' << strGroup << '/' << strType << "/" << strDateFormated << '/' << dbTimesHours[l];
         /// Search Key (oss) in DB
-        visit = dbw_get(db, oss.str());
+        visit = dbA.dbw_get(oss.str());
         if (visit.length() > 0) {
           iVisit = 0;
           sscanf(visit.c_str(), "%d", &iVisit);
@@ -974,6 +985,9 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
     return;
   }
   
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+  
   /// Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
   is_jsonp = handle_jsonp(conn, ri);
@@ -1068,7 +1082,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
             // Build Key ex: "application/w/1/2011-04-24";
             oss << *itt << '/' << strGroup << '/' << strType << "/" << *it;
             // Search Key (oss) in DB
-            visit = dbw_get(db, oss.str());
+            visit = dbA.dbw_get(oss.str());
             oss.str("");
             if (visit.length() > 0) {
               // Update nb visit of the app for this day
@@ -1104,7 +1118,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
         // Build Key ex: "application/w/1/2011-04-24";
         oss << strModule << '/' << strGroup << '/' << strType << "/" << *it;
         // Search Key (oss) in DB
-        visit = dbw_get(db, oss.str());
+        visit = dbA.dbw_get(oss.str());
         if (visit.length() == 0) {
           visit = "0";
         }
@@ -1133,7 +1147,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
         // Build Key ex: "application/w/1/2011-04-24";
         oss << *itt << '/' << strGroup << '/' << strType << "/" << *it;
         // Search Key (oss) in DB
-        visit = dbw_get(db, oss.str());
+        visit = dbA.dbw_get(oss.str());
         oss.str("");
         if (visit.length() > 0) {
           // Update nb visit of the app for this day
@@ -1259,6 +1273,9 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
     return;
   }
   
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+  
   /// Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
   is_jsonp = handle_jsonp(conn, ri);
@@ -1355,7 +1372,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
             // Build Key ex: "application/w/1/2011-04-24";
             oss << *itt << '/' << strGroup << '/' << strType << "/" << *it;
             // Search Key (oss) in DB
-            visit = dbw_get(db, oss.str());
+            visit = dbA.dbw_get(oss.str());
             oss.str("");
             if (visit.length() > 0) {
               // Update nb visit of the app for this day
@@ -1391,7 +1408,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
         // Build Key ex: "application/w/1/2011-04-24";
         oss << strModule << '/' << strGroup << '/' << strType << '/' << *it;
         // Search Key (oss) in DB
-        visit = dbw_get(db, oss.str());
+        visit = dbA.dbw_get(oss.str());
         DEBUG_REQ(oss.str() << " => j=" << j << " - "<< visit << " visits.");
         oss.str("");
         // Return nb visit if != 0
@@ -1419,7 +1436,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
         // Build Key ex: "application/w/1/2011-04-24";
         oss << *itt << '/' << strGroup << '/' << strType << "/" << *it;
         // Search Key (oss) in DB
-        visit = dbw_get(db, oss.str());
+        visit = dbA.dbw_get(oss.str());
         oss.str("");
         if (visit.length() > 0) {
           // Update nb visit of the app for this day
@@ -1593,6 +1610,9 @@ void stats_admin_do_mergemodules(struct mg_connection *conn, const struct mg_req
     return;
   }
   
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+  
   set<string>::iterator it;
   set<string> setToBeDeleted;
   setToBeDeleted.insert(strModule);
@@ -1604,7 +1624,7 @@ void stats_admin_do_mergemodules(struct mg_connection *conn, const struct mg_req
   
   /// Update list of deleted modules in DB
   set<string> setDeletedModules;
-  string strDeletedModules = dbw_get(db, "modules-deleted");
+  string strDeletedModules = dbA.dbw_get("modules-deleted");
   if (strDeletedModules.length() > 0) {
     boost::split(setDeletedModules, strDeletedModules, boost::is_any_of("/"));
     setDeletedModules.erase(""); // Delete empty module
@@ -1618,12 +1638,12 @@ void stats_admin_do_mergemodules(struct mg_connection *conn, const struct mg_req
     strDeletedModules += *it + "/";
   }
   if (moduleMerge == "del") {
-    dbw_remove(db, KEY_DELETED_MODULES);
-    dbw_add(db, KEY_DELETED_MODULES, strDeletedModules);
+    dbA.dbw_remove(KEY_DELETED_MODULES);
+    dbA.dbw_add(KEY_DELETED_MODULES, strDeletedModules);
   } else {
     /// \todo Do use merge
   }
-  response +=", \"modules-deleted\": \""+ dbw_get(db, KEY_DELETED_MODULES) +"\"";
+  response +=", \"modules-deleted\": \""+ dbA.dbw_get(KEY_DELETED_MODULES) +"\"";
   
   /// Set begining JSON string in response.
   mg_printf(conn, "%s", standard_json_reply);
@@ -1717,6 +1737,9 @@ void compressionThread() {
   Config &c = Config::get();
   map<string, set<string> > mapExt = c.FILTER_EXTENSION;
   
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+  
   /// At the first start do a compression from the first day of the year
   boost::gregorian::date dateNow(boost::gregorian::day_clock::universal_day());
   boost::gregorian::date dateLast(dateNow.year(), boost::gregorian::Oct, 7);
@@ -1790,11 +1813,11 @@ void compressionThread() {
 										//if(c.DEBUG_LOGS && lineType == 1 && i == 0 && itExtMap->first == "w" && *it == "bureau")
 										//  cout << "C Search -Minutes-: " << strOss << '/' << dbTimesMinutes[i] << endl;
                     // Search Key in DB
-                    visit = dbw_get(db, strOss+'/'+dbTimesMinutes[i]);
+                    visit = dbA.dbw_get(strOss+'/'+dbTimesMinutes[i]);
                     if (visit.length() > 0) {
                       if(lineType == 1) DEBUG_LOGS("C Found -Minutes-: " << strOss << '/' << dbTimesMinutes[i] << " =" << visit << "#");
                       /// Delete the current Key in DB
-                      dbw_remove(db, strOss+'/'+dbTimesMinutes[i]);
+                      dbA.dbw_remove(strOss+'/'+dbTimesMinutes[i]);
                     }
                   }
                 }
@@ -1802,24 +1825,24 @@ void compressionThread() {
                 if (ditr <= dateToHold) {
                   for(i=0;i<DB_TIMES_SIZE;i++) {
                     // Search Key in DB
-                    visit = dbw_get(db, strOss+'/'+dbTimes[i]);
+                    visit = dbA.dbw_get(strOss+'/'+dbTimes[i]);
                     if (visit.length() > 0) {
                       if(lineType == 1) DEBUG_LOGS("C Found -Dec-: " << strOss << '/' << dbTimes[i] << " =" << visit << "#");
                       /// Delete the current Key in DB
-                      dbw_remove(db, strOss+'/'+dbTimes[i]);
+                      dbA.dbw_remove(strOss+'/'+dbTimes[i]);
                     }
                   }
                 }
                 /// Compress hours stats
                 for(i=0;i<DB_TIMES_HOURS_SIZE;i++) {
                   // Search Key in DB
-                  visit = dbw_get(db, strOss+'/'+dbTimesHours[i]);
+                  visit = dbA.dbw_get(strOss+'/'+dbTimesHours[i]);
                   if (visit.length() > 0) {
                     if(lineType == 1) DEBUG_LOGS("C Found -Hours-: " << strOss << '/' << dbTimesHours[i] << " =" << visit << "#");
                     /// Remove old hours stats
                 		if (ditr <= dateToHoldHours) {
 								      /// Delete the current Key in DB
-                      dbw_remove(db, strOss+'/'+dbTimesHours[i]);
+                      dbA.dbw_remove(strOss+'/'+dbTimesHours[i]);
                     }
                     /// SUM nb visit from hours to days
                     sscanf(visit.c_str(), "%d", &iVisit);
@@ -1829,7 +1852,7 @@ void compressionThread() {
           
                 if (dayVisit > 0) {
                   /// Add nb day visits in DB
-                  if (dbw_add(db, strOss, boost::lexical_cast<string>(dayVisit))) {
+                  if (dbA.dbw_add(strOss, boost::lexical_cast<string>(dayVisit))) {
                     if(lineType == 1) DEBUG_LOGS("C Added: " << strOss << " = " << dayVisit);
                   }
                 }
@@ -1850,11 +1873,11 @@ void compressionThread() {
               strOss = oss.str();
               for(i=0;i<DB_TIMES_HOURS_SIZE;i++) {
                 // Search Key in DB
-                visit = dbw_get(db, strOss+'/'+dbTimesHours[i]);
+                visit = dbA.dbw_get(strOss+'/'+dbTimesHours[i]);
                 if (visit.length() > 0) {
                   if (ditr <= dateToHoldHours) {
                     /// Delete the current Key in DB
-                    dbw_remove(db, strOss+'/'+dbTimesHours[i]);
+                    dbA.dbw_remove(strOss+'/'+dbTimesHours[i]);
                     if(lineType == 1) DEBUG_LOGS("C Full delete: " << strOss);
                   }
                 }
@@ -1865,7 +1888,7 @@ void compressionThread() {
           
 		      /// Flush changes to DB
 		      cout << " Flushing... ";
-          dbw_flush(db);
+          dbA.dbw_flush();
           cout << "done" << endl;
         }
       
@@ -1919,6 +1942,9 @@ void readLogThread(const unsigned short logFileNb, unsigned long readPos) {
   
   /// Get config object containing the path/name of file to read.
   Config &c = Config::get();
+  
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
   
   /// Get config informations, if fail exit
   map<unsigned short, pair<string, string> >::const_iterator itLogFileConf = c.LOGS_FILES_CONFIG.find(logFileNb);
@@ -1982,8 +2008,8 @@ void readLogThread(const unsigned short logFileNb, unsigned long readPos) {
           strModules += "/";
         }
       }
-      dbw_remove(db, KEY_MODULES);
-      dbw_add(db, KEY_MODULES, strModules);
+      dbA.dbw_remove(KEY_MODULES);
+      dbA.dbw_add(KEY_MODULES, strModules);
       
       /// Released the mutex
       mutex.unlock();
@@ -2024,10 +2050,12 @@ int main(int argc, char* argv[]) {
   /// Read configuration file
   Config &c = Config::get();
   
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+  
   /// Open one database for each log file configured
   //for(unsigned short i=1; i <= c.LOGS_FILES_NB; i++) {
-    db = dbw_open(c.DB_PATH, c.DB_NAME);
-    if (db == NULL) {
+    if (! dbA.dbw_open(c.DB_PATH, c.DB_NAME)) {
       cout << "DB not opened. Exit program." << endl;
       return 1;
     }
@@ -2040,7 +2068,7 @@ int main(int argc, char* argv[]) {
   boost::thread cThread;
   if (c.COMPRESSION) {
     cout << "DB task start..." << endl;
-    cThread = boost::thread(compressionThread, c);
+    cThread = boost::thread(compressionThread);
   }
 
   /// Start reading file for each one configured
@@ -2083,7 +2111,7 @@ int main(int argc, char* argv[]) {
   }
   cout << "Closing DB... " << flush;
   /// DB Release
-  dbw_close(db);
+  dbA.dbw_close();
   cout << "done" << endl;
   cout << "Good bye." << endl;
   
