@@ -87,11 +87,11 @@ Config::Config(string cfgFile) {
   LISTENING_PORT = (mapConf.find("LISTENING_PORT") != mapConf.end()) ? mapConf["LISTENING_PORT"] : "9999";
   
   unsigned short logFileNb = 1;
-  if (mapConf.find("LOGS_FILES_NB") != mapConf.end()) {
-    sscanf(mapConf["LOGS_FILES_NB"].c_str(), "%hd", &logFileNb);
+  if (mapConf.find("LOGS_FILE_NB") != mapConf.end()) {
+    sscanf(mapConf["LOGS_FILE_NB"].c_str(), "%hd", &logFileNb);
     if (logFileNb < 1) logFileNb = 1;
   }
-  LOGS_FILES_NB = logFileNb;
+  LOGS_FILE_NB = logFileNb;
   for (unsigned short i = 1; i <= logFileNb; i++) {
     string strI = boost::lexical_cast<std::string>(i);
     LOGS_FILES_CONFIG.insert( make_pair(i,

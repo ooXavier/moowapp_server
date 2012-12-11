@@ -38,7 +38,7 @@ public:
   static const int DAYS_FOR_DETAILS = 7; //!< Days of non compressed stats stored in 10 minutes format
   static const int DAYS_FOR_HOURS_DETAILS = 31; //!< Days of non compressed stats stored in hour format
   std::string LISTENING_PORT; //!< Server listening port
-  unsigned short LOGS_FILES_NB; //!< Number of logs files
+  unsigned short LOGS_FILE_NB; //!< Number of logs files
   std::map<unsigned short, std::pair<std::string, std::string> > LOGS_FILES_CONFIG; //!< Formats and paths of logs files
  
   // Getter of singleton
@@ -66,7 +66,7 @@ private:
   void trimInfo(std::string& s);
   
   // Protection against copy -> Do not define these
-  //Config(const Config&);
+  Config(const Config&);
   void operator=(const Config&);
 
 };

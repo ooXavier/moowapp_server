@@ -76,5 +76,8 @@ Stop with
 - Add support other pages than visits (img, css, js and html/xml files) with the ability to group them in the configuration file
 - Add a detailed view by 60 seconds
 
+### V0.2.5
+- Add the support for multiple log files : Change configuration to be able to read several logs files.
+
 ## Performance number
 - V0.2.3 : Core 2 Duo 2,8Ghz can filter and add in DB up to 11 926 lines / second.

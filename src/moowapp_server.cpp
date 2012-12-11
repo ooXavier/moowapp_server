@@ -1698,9 +1698,8 @@ void *callback(enum mg_event event, struct mg_connection *conn) {
  * \fn void compressionThread(const Config c)
  * \brief Compress the stats DB at a precise time once a day until 7 day from today.
  *
- * \param[in] c Config object.
  */
-void compressionThread(const Config c) {
+void compressionThread() {
   uint64_t i, dayVisit;
   int iVisit;
   ostringstream oss;
@@ -1709,11 +1708,14 @@ void compressionThread(const Config c) {
   set<string> setModules;
   set<string> setDeletedModules;
   set<string>::iterator it;
-  map<string, set<string> > mapExt = c.FILTER_EXTENSION;
   map<string, set<string> >::iterator itExtMap;
   struct tm * timeinfo;
   time_t now;
   char buffer[80];
+  
+  /// Get config object
+  Config &c = Config::get();
+  map<string, set<string> > mapExt = c.FILTER_EXTENSION;
   
   /// At the first start do a compression from the first day of the year
   boost::gregorian::date dateNow(boost::gregorian::day_clock::universal_day());
@@ -1916,7 +1918,7 @@ void readLogThread(const unsigned short logFileNb, unsigned long readPos) {
   }
   
   /// Get config object containing the path/name of file to read.
-  Config c = Config::get();
+  Config &c = Config::get();
   
   /// Get config informations, if fail exit
   map<unsigned short, pair<string, string> >::const_iterator itLogFileConf = c.LOGS_FILES_CONFIG.find(logFileNb);
@@ -2020,7 +2022,7 @@ int main(int argc, char* argv[]) {
   quit = false;
   
   /// Read configuration file
-  Config c = Config::get();
+  Config &c = Config::get();
   
   /// Open one database for each log file configured
   //for(unsigned short i=1; i <= c.LOGS_FILES_NB; i++) {
@@ -2043,8 +2045,8 @@ int main(int argc, char* argv[]) {
 
   /// Start reading file for each one configured
   unsigned long readPos = 0;
-  boost::thread rThread[c.LOGS_FILES_NB];
-  for(unsigned short i=1; i <= c.LOGS_FILES_NB; i++) {
+  boost::thread rThread[c.LOGS_FILE_NB];
+  for(unsigned short i=1; i <= c.LOGS_FILE_NB; i++) {
     cout << "Read file task start... (" << i << ")." << endl;
     rThread[i] = boost::thread(readLogThread, i, readPos);
   }
@@ -2067,8 +2069,9 @@ int main(int argc, char* argv[]) {
   strftime(buffer, 80, "%c", timeinfo);
   cout << buffer << ". Stoping server... " << flush;
   mg_stop(ctx);
-  cout << "done" << endl << "Stoping LOG Thread... " << flush;
-  for(unsigned short i=1; i <= c.LOGS_FILES_NB; i++) {
+  cout << "done" << endl;
+  for(unsigned short i=1; i <= c.LOGS_FILE_NB; i++) {
+    << "Stoping LOG Thread... (" << i << ")." << flush
     rThread[i].interrupt();
     rThread[i].join();
   }
