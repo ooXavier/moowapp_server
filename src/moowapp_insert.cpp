@@ -20,15 +20,16 @@
 #include "log_reader.h"
 
 using namespace std;
-Db *db = NULL;
 
 int main(int argc, char* argv[]) {
   /// Read configuration file
-  Config c;
+  Config &c = Config::get();
+  
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
   
   /// Open the database
-  db = dbw_open(c.DB_PATH, c.DB_NAME);
-  if (db == NULL) {
+  if (! dbA.dbw_open(c.DB_PATH, c.DB_NAME)) {
     cout << "DB not opened. Exit program." << endl;
     return 1;
   }
@@ -39,7 +40,7 @@ int main(int argc, char* argv[]) {
   /// Reconstruct list of modules
   set<string> setModules;
   set<string>::iterator it, itLast;
-  string strModules = dbw_get(db, "modules");
+  string strModules = dbA.dbw_get("modules");
   if (strModules.length() > 0) {
     cout << "START > Modules=" << strModules << endl;
     boost::split(setModules, strModules, boost::is_any_of("/"));
@@ -67,7 +68,7 @@ int main(int argc, char* argv[]) {
       founds = fileName.find(c.FILTER_SSL);
       if (ok && founds!=string::npos) {
         cout << "Reading " << fileName << " ..." << flush;
-        readLogFile(c, itr->path().string(), setModules);
+        readLogFile(1, itr->path().string(), setModules);
         cout << " done." << endl;
       }
     }
@@ -87,14 +88,14 @@ int main(int argc, char* argv[]) {
     }
   }
   cout << "NB Modules: " << (int) setModules.size() << endl;
-  dbw_remove(db, KEY_MODULES);
+  dbA.dbw_remove(KEY_MODULES);
   cout << "Removed" << endl;
-  dbw_add(db, KEY_MODULES, strModules);
+  dbA.dbw_add(KEY_MODULES, strModules);
   cout << "Re-added" << endl;
   
   /// Close the database
   cout << "Closing db connection" << endl;
-  dbw_close(db);
+  dbA.dbw_close();
   
   return 0;
 }

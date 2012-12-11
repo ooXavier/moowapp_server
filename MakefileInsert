@@ -1,12 +1,15 @@
-CC=g++
-BOOST=/usr
-DATABASE=/usr
-CFLAGS=-c -O2 -Wall -I$(BOOST)/include -I$(DATABASE)/include
-LDFLAGS=-L$(DATABASE)/lib -L$(BOOST)/lib
-LIBS=-lboost_system-mt -lboost_thread-mt -lboost_filesystem-mt -lboost_program_options-mt -lboost_iostreams-mt -lboost_date_time-mt -lboost_regex-mt -ldb_cxx -ldl
-SOURCES=src/configuration.cpp src/log_reader.cpp src/db_access_berkeleydb.cpp src/moowapp_insert.cpp
-OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLE=bin/moowapp_insert
+# INSTALL PATHS
+BOOST = /usr
+DATABASE = /usr
+
+# COMPILATION SETTINGS
+CC = g++
+CFLAGS = -c -O2 -Wall -I$(BOOST)/include -I$(DATABASE)/include
+LDFLAGS = -L$(DATABASE)/lib -L$(BOOST)/lib
+LIBS = -lboost_system-mt -lboost_thread-mt -lboost_filesystem-mt -lboost_program_options-mt -lboost_iostreams-mt -lboost_date_time-mt -lboost_regex-mt -ldb_cxx
+SOURCES = src/configuration.cpp src/log_reader.cpp src/db_access_berkeleydb.cpp src/moowapp_insert.cpp
+OBJECTS = $(SOURCES:.cpp=.o)
+EXECUTABLE = bin/moowapp_insert
 
 all: $(SOURCES) $(EXECUTABLE)
 
