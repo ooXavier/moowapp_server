@@ -2099,7 +2099,7 @@ int main(int argc, char* argv[]) {
   mg_stop(ctx);
   cout << "done" << endl;
   for(unsigned short i=1; i <= c.LOGS_FILE_NB; i++) {
-    << "Stoping LOG Thread... (" << i << ")." << flush
+    cout << "Stoping LOG Thread... (" << i << ")." << flush;
     rThread[i].interrupt();
     rThread[i].join();
   }
