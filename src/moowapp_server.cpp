@@ -48,6 +48,9 @@ bool quit;              //!< Boolean used to quit server properly
  * \param[in] modulesLine Key in DB to look for modules.
  */
 int getDBModules(set<string> &setModules, const string &modulesLine) {
+  /// Read configuration file
+  Config &c = Config::get();
+  
   /// Get DB accessor
   DBAccessBerkeley &dbA = DBAccessBerkeley::get();
   
@@ -62,7 +65,7 @@ int getDBModules(set<string> &setModules, const string &modulesLine) {
   boost::split(setModules, strModules, boost::is_any_of("/"));
 
   /// Exclude modules configuration
-  /*if (c.EXCLUDE_MOD != "") {
+  if (c.EXCLUDE_MOD != "") {
     set<string>::iterator it = setModules.begin();
     while(it!=setModules.end()) {
       if ((*it).find(c.EXCLUDE_MOD, 0) != string::npos) {
@@ -71,9 +74,9 @@ int getDBModules(set<string> &setModules, const string &modulesLine) {
         ++it;
       }
     }
-  }*/
+  }
   
-  DEBUG_LOGS("Known modules (" << setModules.size() << ") for KEY=" << modulesLine << " are :" << strModules);
+  //DEBUG_LOGS("Known modules (" << setModules.size() << ") for KEY=" << modulesLine << " are :" << strModules);
   return 0;
 }
 
@@ -483,7 +486,12 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
   vector< pair<string, map<int, int> > > vRes;
   nbApps = 0;
   sscanf(strModules.c_str(), "%d", &nbApps);
-  DEBUG_REQ("stats_app_intra - with " << nbApps);
+  if (strMode == "all") {
+    DEBUG_REQ("stats_app_intra - with " << nbApps << " apps.");
+  } else {
+    DEBUG_REQ("stats_app_intra - with " << nbApps << " module(s) in app.");
+  }
+  
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
     if (strMode == "all") {
@@ -494,7 +502,6 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
         continue;
       }
       oss.str("");
-      if (i==0) DEBUG_REQ(" apps.");
 
       // Get nb module of that app in request
       nbModules = 0;
@@ -505,7 +512,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
         continue;
       }
       oss.str("");
-      DEBUG_REQ(" with " << strModules << " modules in app " << strApplication << " [");
+      DEBUG_REQ(strApplication << " with " << strModules << " modules [");
 
       // Loop to put modules from request in a set
       setModules.clear();
@@ -545,7 +552,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
             minVisit += iVisit;
           }
           // Return last nb visit
-          //if (c.DEBUG_REQUESTS && strcmp("xxx", strApplication)==0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << boost::lexical_cast<int>(visit) << endl; 
+          //if (strcmp("xxx", strApplication)==0) DEBUG_REQ("visits for " << oss.str() << " (" << (*itm).first << ")= " << minVisit);
           oss.str("");
         }  
         mapResMod.insert(pair<int, int>((*itm).first, minVisit));
@@ -554,7 +561,6 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
       vRes.push_back(make_pair(strApplication, mapResMod));
     }
     else {
-      if (i==0) DEBUG_REQ(" module(s) in app.");
       oss << "m_" << i;
       if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
         strModule = itParam->second;
@@ -757,7 +763,11 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
   vector< pair<string, map<int, int> > > vRes;
   nbApps = 0;
   sscanf(strModules.c_str(), "%d", &nbApps);
-  DEBUG_REQ("stats_app_day - with " << nbApps);
+  if (strMode == "all") {
+    DEBUG_REQ("stats_app_day - with " << nbApps << " apps.");
+  } else {
+    DEBUG_REQ("stats_app_day - with " << nbApps << " module(s) in app.");
+  }
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
     if (strMode == "all") {
@@ -768,7 +778,6 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
         continue;
       }
       oss.str("");
-      if (i==0) DEBUG_REQ(" apps.");
 
       /// Get nb module of that app in request
       nbModules = 0;
@@ -779,7 +788,7 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
         continue;
       }
       oss.str("");
-      DEBUG_REQ(" with " << nbModules << " modules in app " << strApplication << " [");
+      DEBUG_REQ(strApplication << " with " << nbModules << " modules [");
 
       /// Loop to put modules from request in a set
       setModules.clear();
@@ -822,7 +831,6 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
       vRes.push_back(make_pair(strApplication, mapResMod));
     }
     else {
-      if (i==0) DEBUG_REQ(" modules in app.");
       oss << "m_" << i;
       if ((itParam = mapParams.find(oss.str())) != mapParams.end()) {
         strModule = itParam->second;
@@ -1049,7 +1057,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
         continue;
       }
       oss.str("");
-      DEBUG_REQ(" with " << nbModules << " modules in app [");
+      DEBUG_REQ("with " << nbModules << " modules in app [");
       
       // Loop to put modules from request in a set
       setModules.clear();
@@ -1339,7 +1347,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
         continue;
       }
       oss.str("");
-      DEBUG_REQ(" with " << nbModules << " modules in app [");
+      DEBUG_REQ("with " << nbModules << " modules in app [");
       
       // Loop to put modules from request in a set
       setModules.clear();
@@ -1988,7 +1996,7 @@ void readLogThread(const unsigned short logFileNb, unsigned long readPos) {
       set<string>::iterator it, itLast;
       getDBModules(setModules, KEY_MODULES);
     
-      readPos = readLogFile(oss.str(), setModules, readPos);
+      readPos = readLogFile(logFileNb, oss.str(), setModules, readPos);
       //--cout << " until " << readPos << "." << flush;
       oss.str("");
       
@@ -2053,13 +2061,11 @@ int main(int argc, char* argv[]) {
   /// Get DB accessor
   DBAccessBerkeley &dbA = DBAccessBerkeley::get();
   
-  /// Open one database for each log file configured
-  //for(unsigned short i=1; i <= c.LOGS_FILES_NB; i++) {
-    if (! dbA.dbw_open(c.DB_PATH, c.DB_NAME)) {
-      cout << "DB not opened. Exit program." << endl;
-      return 1;
-    }
-    //}
+  /// Open database for each log file configured
+  if (! dbA.dbw_open(c.DB_PATH, c.DB_NAME)) {
+    cout << "DB not opened. Exit program." << endl;
+    return 1;
+  }
   
   /// Attach handler for SIGINT
   signal(SIGINT, handler_function);

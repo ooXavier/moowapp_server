@@ -97,10 +97,11 @@ bool insertLogLine(const string &strLog) {
  * \fn bool analyseLine(const string line, set<string> &setModules)
  * \brief Create a SslLog object from a line of a log file and call insertLogLine.
  *
+ * \param[in] logFileNb Log file number in configuration (for debugging purpose).
  * \param[in] line to be analysed.
  * \param[in, out] setModules set of modules to be updated with the visit inserted in DB.
  */
-bool analyseLine(const string &line, set<string> &setModules) {
+bool analyseLine(const unsigned short &logFileNb, const string &line, set<string> &setModules) {
   if (line.length() < 10) return false; // Line not long enough : error
   SslLog logLine;
   
@@ -136,7 +137,7 @@ bool analyseLine(const string &line, set<string> &setModules) {
     }
   }
   
-  DEBUG_LOGS(cout << "> Url: " << strs[6]);
+  DEBUG_LOGS("#" << logFileNb << ". Url: " << strs[6]);
   
   //cout << "line: " << line << endl;
   /*unsigned int iHour = 0, iMin = 0;
@@ -211,16 +212,17 @@ bool analyseLine(const string &line, set<string> &setModules) {
  * \fn unsigned long readLogFile(const string strFile, set<string> &setModules, unsigned long readPos)
  * \brief Read a log file and analyse every line starting at a specified position.
  *
+ * \param[in] logFileNb Log file number in configuration (for debugging purpose).
  * \param[in] strFile.
  * \param[in, out] setModules set of modules.
  * \param[in] readPos.
  */
-unsigned long readLogFile(const string &strFile, set<string> &setModules, unsigned long readPos) {
+unsigned long readLogFile(const unsigned short &logFileNb, const string &strFile, set<string> &setModules, unsigned long readPos) {
   char * buffer;
   unsigned long size, lSize;
   FILE * pFile = fopen(strFile.c_str(), "rb");
   if (pFile == NULL) {
-    cerr << "Error opening file: " << strFile << endl;
+    cerr << "Error opening file: " << strFile << endl;  
     return 0;
   }
   
@@ -249,19 +251,21 @@ unsigned long readLogFile(const string &strFile, set<string> &setModules, unsign
   int i = 0; // nb of lines in file
   int myI = 0; // nb of lines matching stg
   
-  DEBUG_LOGS("> Parsing logs");
+  DEBUG_LOGS("#" << logFileNb << ". Parsing logs...");
   
   string linedata;
   for (unsigned long j=0; j<lSize; j++) { // loop thru the buffer
     linedata.push_back(buffer[j]); // push character into string
     if(buffer[j] == 13 || buffer[j] == 10) { // until we hit newline
       const string str = linedata;
-      if (analyseLine(str, setModules)) myI++;
+      if (analyseLine(logFileNb, str, setModules)) myI++;
       i++;
       linedata.clear(); // Clear "temporary string"
     }
   }
   free (buffer);
+  
+  DEBUG_LOGS("#" << logFileNb << ". Done");
   
   return size;
 }

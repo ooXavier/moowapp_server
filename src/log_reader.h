@@ -55,20 +55,20 @@ bool insertLogLine(const std::string &strLog);
  * \fn void analyseLine(string line, set<string> &setModules)
  * \brief Filter the usefull stats from a string that represent a line of log
  *
- * \param db The pointer to access the DB.
+ * \param logFileNb Log file number in configuration (for debugging purpose).
  * \param line The log line to be parsed.
  * \param setModules The set of web modules already known.
  */
-bool analyseLine(const std::string &line, std::set<std::string> &setModules);
+bool analyseLine(const unsigned short &logFileNb, const std::string &line, std::set<std::string> &setModules);
 
 /*!
  * \fn unsigned long readLogFile(string strFile, set<string> &setModules)
  * \brief Read a file and call the line analyser for each line
  *
- * \param db The pointer to access the DB.
+ * \param logFileNb Log file number in configuration (for debugging purpose).
  * \param strFile The file to be used as log file.
  * \param setModules The set of web modules already known.
  */
-unsigned long readLogFile(const std::string &strFile, std::set<std::string> &setModules, unsigned long readPos = 0);
+unsigned long readLogFile(const unsigned short &logFileNb, const std::string &strFile, std::set<std::string> &setModules, unsigned long readPos = 0);
 
 #endif // MOOWAPP_STATS_LOG_READER_H_

@@ -36,9 +36,6 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 	$ sudo make install
 	</pre>
 
-2. Build mongoose with
-
-    cd mongoose && make (linux|bsd|solaris|mac|windows|mingw) && cd ..
 3. Build app with
 
     make
@@ -50,10 +47,13 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 ## Installation
 
 Start the app with
+
     ./moowapp.sh start
 Check if the app is running with
+
     ./moowapp.sh status
 Stop with
+
     ./moowapp.sh stop
 
 ## Changelogs
