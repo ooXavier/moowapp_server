@@ -28,7 +28,7 @@
  <tr style="height: 56px;">
   <td style="padding-left: 0.5em;">
    <div id="projectname">mooWApp Server
-   &#160;<span id="projectnumber">0.2.4</span>
+   &#160;<span id="projectnumber">0.2.5</span>
    </div>
    <div id="projectbrief">WEBApp Statistics Server based on webservers access_log file (on top of BerkeleyDB and mongoose C embedded webserver)</div>
   </td>
@@ -103,7 +103,8 @@ $(document).ready(function(){initNavTree('db__access__berkeleydb_8h.html','');})
 
 <div class="header">
   <div class="summary">
-<a href="#func-members">Functions</a>  </div>
+<a href="#nested-classes">Classes</a> &#124;
+<a href="#define-members">Macros</a>  </div>
   <div class="headertitle">
 <div class="title">db_access_berkeleydb.h File Reference</div>  </div>
 </div><!--header-->
@@ -114,200 +115,24 @@ $(document).ready(function(){initNavTree('db__access__berkeleydb_8h.html','');})
 </div>
 <p><a href="db__access__berkeleydb_8h_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
-Functions</h2></td></tr>
-<tr class="memitem:ad01427ec156f7745e4b84b15bbf7258e"><td class="memItemLeft" align="right" valign="top">Db *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="db__access__berkeleydb_8h.html#ad01427ec156f7745e4b84b15bbf7258e">dbw_open</a> (const std::string baseDir, const std::string dbFileName)</td></tr>
-<tr class="separator:ad01427ec156f7745e4b84b15bbf7258e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a71b55f436391eb36b8bf757e67af26fd"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="db__access__berkeleydb_8h.html#a71b55f436391eb36b8bf757e67af26fd">dbw_get</a> (Db *<a class="el" href="moowapp__server_8cpp.html#aa70f299f5c3048f9e1a13b63eb6dfb4c">db</a>, const std::string strKey, const int flags=0)</td></tr>
-<tr class="separator:a71b55f436391eb36b8bf757e67af26fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a50f2f8f26a4eb37b4e3c11e380abcf2e"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="db__access__berkeleydb_8h.html#a50f2f8f26a4eb37b4e3c11e380abcf2e">dbw_add</a> (Db *<a class="el" href="moowapp__server_8cpp.html#aa70f299f5c3048f9e1a13b63eb6dfb4c">db</a>, const std::string strKey, const std::string strValue)</td></tr>
-<tr class="separator:a50f2f8f26a4eb37b4e3c11e380abcf2e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a580ee6d915d8e4e57746e0876c72a565"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="db__access__berkeleydb_8h.html#a580ee6d915d8e4e57746e0876c72a565">dbw_remove</a> (Db *<a class="el" href="moowapp__server_8cpp.html#aa70f299f5c3048f9e1a13b63eb6dfb4c">db</a>, const std::string strKey)</td></tr>
-<tr class="separator:a580ee6d915d8e4e57746e0876c72a565"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa3616dbad05fc9a46b1bd12297a655f8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="db__access__berkeleydb_8h.html#aa3616dbad05fc9a46b1bd12297a655f8">dbw_flush</a> (Db *<a class="el" href="moowapp__server_8cpp.html#aa70f299f5c3048f9e1a13b63eb6dfb4c">db</a>)</td></tr>
-<tr class="separator:aa3616dbad05fc9a46b1bd12297a655f8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af7062aadb38f42cf9297d24bd2490aa4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="db__access__berkeleydb_8h.html#af7062aadb38f42cf9297d24bd2490aa4">dbw_compact</a> (Db *<a class="el" href="moowapp__server_8cpp.html#aa70f299f5c3048f9e1a13b63eb6dfb4c">db</a>)</td></tr>
-<tr class="separator:af7062aadb38f42cf9297d24bd2490aa4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac4d3f93f65dbabacd7da8a24b4430f22"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="db__access__berkeleydb_8h.html#ac4d3f93f65dbabacd7da8a24b4430f22">dbw_close</a> (Db *<a class="el" href="moowapp__server_8cpp.html#aa70f299f5c3048f9e1a13b63eb6dfb4c">db</a>)</td></tr>
-<tr class="separator:ac4d3f93f65dbabacd7da8a24b4430f22"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a243666eb8cee2ac8fab996d17f79b0b7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="db__access__berkeleydb_8h.html#a243666eb8cee2ac8fab996d17f79b0b7">dbw_drop</a> (const char *basedir)</td></tr>
-<tr class="separator:a243666eb8cee2ac8fab996d17f79b0b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="nested-classes"></a>
+Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Class to access DB functions.  <a href="class_d_b_access_berkeley.html#details">More...</a><br/></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="define-members"></a>
+Macros</h2></td></tr>
+<tr class="memitem:ab14804b740acfb140a108380bc87fb14"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="db__access__berkeleydb_8h.html#ab14804b740acfb140a108380bc87fb14">VAL_MAX_VALUE_SIZE</a>&#160;&#160;&#160;100</td></tr>
+<tr class="separator:ab14804b740acfb140a108380bc87fb14"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Function Documentation</h2>
-<a class="anchor" id="a50f2f8f26a4eb37b4e3c11e380abcf2e"></a>
+<h2 class="groupheader">Macro Definition Documentation</h2>
+<a class="anchor" id="ab14804b740acfb140a108380bc87fb14"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">int dbw_add </td>
-          <td>(</td>
-          <td class="paramtype">Db *&#160;</td>
-          <td class="paramname"><em>db</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string&#160;</td>
-          <td class="paramname"><em>strKey</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string&#160;</td>
-          <td class="paramname"><em>strValue</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="ac4d3f93f65dbabacd7da8a24b4430f22"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void dbw_close </td>
-          <td>(</td>
-          <td class="paramtype">Db *&#160;</td>
-          <td class="paramname"><em>db</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="af7062aadb38f42cf9297d24bd2490aa4"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void dbw_compact </td>
-          <td>(</td>
-          <td class="paramtype">Db *&#160;</td>
-          <td class="paramname"><em>db</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="a243666eb8cee2ac8fab996d17f79b0b7"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void dbw_drop </td>
-          <td>(</td>
-          <td class="paramtype">const char *&#160;</td>
-          <td class="paramname"><em>basedir</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="aa3616dbad05fc9a46b1bd12297a655f8"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void dbw_flush </td>
-          <td>(</td>
-          <td class="paramtype">Db *&#160;</td>
-          <td class="paramname"><em>db</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="a71b55f436391eb36b8bf757e67af26fd"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">std::string dbw_get </td>
-          <td>(</td>
-          <td class="paramtype">Db *&#160;</td>
-          <td class="paramname"><em>db</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string&#160;</td>
-          <td class="paramname"><em>strKey</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const int&#160;</td>
-          <td class="paramname"><em>flags</em> = <code>0</code>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="ad01427ec156f7745e4b84b15bbf7258e"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">Db* dbw_open </td>
-          <td>(</td>
-          <td class="paramtype">const std::string&#160;</td>
-          <td class="paramname"><em>baseDir</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string&#160;</td>
-          <td class="paramname"><em>dbFileName</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="a580ee6d915d8e4e57746e0876c72a565"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void dbw_remove </td>
-          <td>(</td>
-          <td class="paramtype">Db *&#160;</td>
-          <td class="paramname"><em>db</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string&#160;</td>
-          <td class="paramname"><em>strKey</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
+          <td class="memname">#define VAL_MAX_VALUE_SIZE&#160;&#160;&#160;100</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -320,7 +145,7 @@ Functions</h2></td></tr>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_68267d1309a1af8e8297ef4c3efbcdba.html">src</a></li><li class="navelem"><a class="el" href="db__access__berkeleydb_8h.html">db_access_berkeleydb.h</a></li>
-    <li class="footer">Generated on Wed Nov 21 2012 08:43:12 for mooWApp Server by
+    <li class="footer">Generated on Tue Dec 11 2012 08:14:13 for mooWApp Server by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.2 </li>
   </ul>

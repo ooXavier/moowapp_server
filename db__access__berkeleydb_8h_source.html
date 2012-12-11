@@ -28,7 +28,7 @@
  <tr style="height: 56px;">
   <td style="padding-left: 0.5em;">
    <div id="projectname">mooWApp Server
-   &#160;<span id="projectnumber">0.2.4</span>
+   &#160;<span id="projectnumber">0.2.5</span>
    </div>
    <div id="projectbrief">WEBApp Statistics Server based on webservers access_log file (on top of BerkeleyDB and mongoose C embedded webserver)</div>
   </td>
@@ -116,23 +116,44 @@ $(document).ready(function(){initNavTree('db__access__berkeleydb_8h_source.html'
 <div class="line"><a name="l00013"></a><span class="lineno">   13</span>&#160;<span class="comment">// database</span></div>
 <div class="line"><a name="l00014"></a><span class="lineno">   14</span>&#160;<span class="preprocessor">#include &lt;db_cxx.h&gt;</span></div>
 <div class="line"><a name="l00015"></a><span class="lineno">   15</span>&#160;</div>
-<div class="line"><a name="l00016"></a><span class="lineno">   16</span>&#160;Db * <a class="code" href="db__access__berkeleydb_8cpp.html#a988d041eb0c62e4d16058bb254f51acc">dbw_open</a>(<span class="keyword">const</span> std::string baseDir, <span class="keyword">const</span> std::string dbFileName);</div>
-<div class="line"><a name="l00017"></a><span class="lineno">   17</span>&#160;std::string <a class="code" href="db__access__berkeleydb_8cpp.html#a063e1cddfaf3a1a2db3ee4c5a928f36c">dbw_get</a>(Db *<a class="code" href="log__reader_8h.html#aa70f299f5c3048f9e1a13b63eb6dfb4c" title="DB pointer.">db</a>, <span class="keyword">const</span> std::string strKey, <span class="keyword">const</span> <span class="keywordtype">int</span> flags = 0);</div>
-<div class="line"><a name="l00018"></a><span class="lineno">   18</span>&#160;<span class="keywordtype">int</span> <a class="code" href="db__access__berkeleydb_8cpp.html#a351803b154c6a90647b85dc2996f525d">dbw_add</a>(Db *<a class="code" href="log__reader_8h.html#aa70f299f5c3048f9e1a13b63eb6dfb4c" title="DB pointer.">db</a>, <span class="keyword">const</span> std::string strKey, <span class="keyword">const</span> std::string strValue);</div>
-<div class="line"><a name="l00019"></a><span class="lineno">   19</span>&#160;<span class="keywordtype">void</span> <a class="code" href="db__access__berkeleydb_8cpp.html#a5c9f149b60dc752094fcecf5a5d1357b">dbw_remove</a>(Db *<a class="code" href="log__reader_8h.html#aa70f299f5c3048f9e1a13b63eb6dfb4c" title="DB pointer.">db</a>, <span class="keyword">const</span> std::string strKey);</div>
-<div class="line"><a name="l00020"></a><span class="lineno">   20</span>&#160;<span class="keywordtype">void</span> <a class="code" href="db__access__berkeleydb_8cpp.html#aa3616dbad05fc9a46b1bd12297a655f8">dbw_flush</a>(Db *<a class="code" href="log__reader_8h.html#aa70f299f5c3048f9e1a13b63eb6dfb4c" title="DB pointer.">db</a>);</div>
-<div class="line"><a name="l00021"></a><span class="lineno">   21</span>&#160;<span class="keywordtype">void</span> <a class="code" href="db__access__berkeleydb_8cpp.html#af7062aadb38f42cf9297d24bd2490aa4">dbw_compact</a>(Db *<a class="code" href="log__reader_8h.html#aa70f299f5c3048f9e1a13b63eb6dfb4c" title="DB pointer.">db</a>);</div>
-<div class="line"><a name="l00022"></a><span class="lineno">   22</span>&#160;<span class="keywordtype">void</span> <a class="code" href="db__access__berkeleydb_8cpp.html#ac4d3f93f65dbabacd7da8a24b4430f22">dbw_close</a>(Db *<a class="code" href="log__reader_8h.html#aa70f299f5c3048f9e1a13b63eb6dfb4c" title="DB pointer.">db</a>);</div>
-<div class="line"><a name="l00023"></a><span class="lineno">   23</span>&#160;<span class="keywordtype">void</span> <a class="code" href="db__access__berkeleydb_8cpp.html#a243666eb8cee2ac8fab996d17f79b0b7">dbw_drop</a>(<span class="keyword">const</span> <span class="keywordtype">char</span> *basedir);</div>
-<div class="line"><a name="l00024"></a><span class="lineno">   24</span>&#160;</div>
-<div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;<span class="preprocessor">#endif // MOOWAPP_STATS_DB_ACCESS_H_</span></div>
+<div class="line"><a name="l00016"></a><span class="lineno"><a class="code" href="db__access__berkeleydb_8h.html#ab14804b740acfb140a108380bc87fb14">   16</a></span>&#160;<span class="preprocessor">#define VAL_MAX_VALUE_SIZE 100</span></div>
+<div class="line"><a name="l00017"></a><span class="lineno">   17</span>&#160;<span class="preprocessor"></span></div>
+<div class="line"><a name="l00023"></a><span class="lineno"><a class="code" href="class_d_b_access_berkeley.html">   23</a></span>&#160;<span class="keyword">class </span><a class="code" href="class_d_b_access_berkeley.html" title="Class to access DB functions.">DBAccessBerkeley</a></div>
+<div class="line"><a name="l00024"></a><span class="lineno">   24</span>&#160;{</div>
+<div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;<span class="keyword">public</span>:</div>
+<div class="line"><a name="l00026"></a><span class="lineno">   26</span>&#160;  <span class="keywordtype">bool</span> <a class="code" href="class_d_b_access_berkeley.html#a8dbd033f23437dabd11b850d1171e091">dbw_open</a>(<span class="keyword">const</span> std::string baseDir, <span class="keyword">const</span> std::string dbFileName);</div>
+<div class="line"><a name="l00027"></a><span class="lineno">   27</span>&#160;  std::string <a class="code" href="class_d_b_access_berkeley.html#aae0f852d88cf930d33e09e935fbb3a08">dbw_get</a>(<span class="keyword">const</span> std::string strKey, <span class="keyword">const</span> <span class="keywordtype">int</span> flags = 0);</div>
+<div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160;  <span class="keywordtype">int</span> <a class="code" href="class_d_b_access_berkeley.html#aa989f9cc663badaf457be3e423c394fb">dbw_add</a>(<span class="keyword">const</span> std::string strKey, <span class="keyword">const</span> std::string strValue);</div>
+<div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160;  <span class="keywordtype">void</span> <a class="code" href="class_d_b_access_berkeley.html#a92649fd90eadba6fc80730019a7ab436">dbw_remove</a>(<span class="keyword">const</span> std::string strKey);</div>
+<div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160;  <span class="keywordtype">void</span> <a class="code" href="class_d_b_access_berkeley.html#a9d14a7ad0eacfc8c17bd93e71d1a2b49">dbw_flush</a>();</div>
+<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;  <span class="keywordtype">void</span> <a class="code" href="class_d_b_access_berkeley.html#ad95eac0934534d74fe3c83fc526e94d9">dbw_compact</a>();</div>
+<div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160;  <span class="keywordtype">void</span> <a class="code" href="class_d_b_access_berkeley.html#ab9175361c3b296e3dea6ca7d5f7c8eff">dbw_close</a>();</div>
+<div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;  <span class="keywordtype">void</span> <a class="code" href="class_d_b_access_berkeley.html#a871fa0b2e10edfa94d80d9a669208c85">dbw_drop</a>(<span class="keyword">const</span> <span class="keywordtype">char</span> *basedir);</div>
+<div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160; </div>
+<div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160;  <span class="comment">// Getter of singleton</span></div>
+<div class="line"><a name="l00036"></a><span class="lineno"><a class="code" href="class_d_b_access_berkeley.html#aa11811aa72dccffde82a4e800d418727">   36</a></span>&#160;  <span class="keyword">static</span> <a class="code" href="class_d_b_access_berkeley.html" title="Class to access DB functions.">DBAccessBerkeley</a> &amp;<span class="keyword">get</span>() <span class="keywordflow">throw</span>() {</div>
+<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;    <span class="keywordflow">return</span> singleton;</div>
+<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;  }</div>
+<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;</div>
+<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;<span class="keyword">private</span>:</div>
+<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;  <span class="keyword">static</span> <a class="code" href="class_d_b_access_berkeley.html" title="Class to access DB functions.">DBAccessBerkeley</a> singleton;</div>
+<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;  Db *bdb; </div>
+<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;  </div>
+<div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;  <a class="code" href="class_d_b_access_berkeley.html" title="Class to access DB functions.">DBAccessBerkeley</a>();</div>
+<div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160;  </div>
+<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;  <span class="comment">// Protection against copy -&gt; Do not define these</span></div>
+<div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;  <a class="code" href="class_d_b_access_berkeley.html" title="Class to access DB functions.">DBAccessBerkeley</a>(<span class="keyword">const</span> <a class="code" href="class_d_b_access_berkeley.html" title="Class to access DB functions.">DBAccessBerkeley</a>&amp;);</div>
+<div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;  <span class="keywordtype">void</span> operator=(<span class="keyword">const</span> <a class="code" href="class_d_b_access_berkeley.html" title="Class to access DB functions.">DBAccessBerkeley</a>&amp;);</div>
+<div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;};</div>
+<div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;</div>
+<div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;<span class="preprocessor">#endif // MOOWAPP_STATS_DB_ACCESS_H_</span></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_68267d1309a1af8e8297ef4c3efbcdba.html">src</a></li><li class="navelem"><a class="el" href="db__access__berkeleydb_8h.html">db_access_berkeleydb.h</a></li>
-    <li class="footer">Generated on Wed Nov 21 2012 08:43:12 for mooWApp Server by
+    <li class="footer">Generated on Tue Dec 11 2012 08:14:13 for mooWApp Server by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.2 </li>
   </ul>

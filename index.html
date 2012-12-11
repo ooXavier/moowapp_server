@@ -28,7 +28,7 @@
  <tr style="height: 56px;">
   <td style="padding-left: 0.5em;">
    <div id="projectname">mooWApp Server
-   &#160;<span id="projectnumber">0.2.4</span>
+   &#160;<span id="projectnumber">0.2.5</span>
    </div>
    <div id="projectbrief">WEBApp Statistics Server based on webservers access_log file (on top of BerkeleyDB and mongoose C embedded webserver)</div>
   </td>
@@ -117,25 +117,38 @@ $(document).ready(function(){initNavTree('index.html','');});
 <li>Administrators can monitor specific pages (filtering log content)</li>
 <li>RoundRobin mecanism to keep a small DB.</li>
 </ul>
-<h2>Manual</h2>
+<h2>Installation</h2>
 <ol type="1">
-<li>Change the configuration.ini to set-up your folder to your web logs files</li>
-<li><p class="startli">Download and install BerkeleyDB (or any other db system: Kyoto Cabinet, Google LevelDB, nessDB ...)</p>
-<p class="startli">Go to <a href="http://www.oracle.com/technetwork/database/berkeleydb/downloads/index-082944.html">http://www.oracle.com/technetwork/database/berkeleydb/downloads/index-082944.html</a> Download this one "Berkeley DB 5.3.15.NC.tar.gz , without encryption" (34M) $ tar zxvf "Berkeley DB 5.3.15.NC.tar.gz" $ cd db-xxxxxxx $ cd build_unix (or the one adapted to your situation) $ ../dist/configure &ndash;prefix="FOLDER TO INSTALL" $ make $ make install (default path are : /usr/local/BerkeleyDB.5.3 for app and /usr/local/BerkeleyDB.5.3/lib for libs)</p>
-</li>
+<li>Download and install Boost</li>
+<li><p class="startli">Download and install BerkeleyDB</p>
+<pre>
+                Go to <a href="http://www.oracle.com/technetwork/database/berkeleydb/downloads/index-082944.html">http://www.oracle.com/technetwork/database/berkeleydb/downloads/index-082944.html</a>
+                Download this one "Berkeley DB 5.3.21.NC.tar.gz , without encryption" (34M)
+                $ tar zxvf "Berkeley DB 5.3.15.NC.tar.gz"
+                $ cd db-xxxxxxx/build_unix
+                $ ../dist/configure --enable-cxx --enable-stl (if you want to change default install folder add --prefix="FOLDER TO INSTALL"-
+                (default path are : /usr/local/BerkeleyDB.5.3 for app with docs and /usr/local/BerkeleyDB.5.3/lib for libs)
+                $ make
+                $ sudo make install
+                </pre></li>
 </ol>
 <ol type="1">
-<li><p class="startli">Build mongoose with</p>
-<p class="startli">cd mongoose &amp;&amp; make (linux|bsd|solaris|mac|windows|mingw) &amp;&amp; cd ..</p>
-</li>
 <li><p class="startli">Build app with</p>
 <p class="startli">make</p>
 </li>
+<li>Change the configuration.ini to set-up your folder to your web logs files</li>
 <li><p class="startli">Then run...</p>
 <p class="startli">./moowapp.sh start</p>
 </li>
 </ol>
-<h2>Changelogs</h2>
+<h2>Installation</h2>
+<p>Start the app with </p>
+<pre class="fragment">./moowapp.sh start
+</pre><p> Check if the app is running with </p>
+<pre class="fragment">./moowapp.sh status
+</pre><p> Stop with </p>
+<pre class="fragment">./moowapp.sh stop
+</pre><h2>Changelogs</h2>
 <h3>V0.1</h3>
 <ul>
 <li>First alpha version running on BerkeleyDB and Mongoose</li>
@@ -160,6 +173,10 @@ $(document).ready(function(){initNavTree('index.html','');});
 <li>Add support other pages than visits (img, css, js and html/xml files) with the ability to group them in the configuration file</li>
 <li>Add a detailed view by 60 seconds</li>
 </ul>
+<h3>V0.2.5</h3>
+<ul>
+<li>Add the support for multiple log files : Change configuration to be able to read several logs files.</li>
+</ul>
 <h2>Performance number</h2>
 <ul>
 <li>V0.2.3 : Core 2 Duo 2,8Ghz can filter and add in DB up to 11 926 lines / second. </li>
@@ -169,7 +186,7 @@ $(document).ready(function(){initNavTree('index.html','');});
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer">Generated on Wed Nov 21 2012 08:43:12 for mooWApp Server by
+    <li class="footer">Generated on Tue Dec 11 2012 08:14:13 for mooWApp Server by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.2 </li>
   </ul>

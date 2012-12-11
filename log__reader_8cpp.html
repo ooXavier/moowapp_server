@@ -28,7 +28,7 @@
  <tr style="height: 56px;">
   <td style="padding-left: 0.5em;">
    <div id="projectname">mooWApp Server
-   &#160;<span id="projectnumber">0.2.4</span>
+   &#160;<span id="projectnumber">0.2.5</span>
    </div>
    <div id="projectbrief">WEBApp Statistics Server based on webservers access_log file (on top of BerkeleyDB and mongoose C embedded webserver)</div>
   </td>
@@ -133,33 +133,25 @@ Functions</h2></td></tr>
 <tr class="memitem:a51fafc027b603c1dad3bfb2c6dfdff6b"><td class="memItemLeft" align="right" valign="top">string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8cpp.html#a51fafc027b603c1dad3bfb2c6dfdff6b">findExtInLine</a> (map&lt; string, set&lt; string &gt; &gt; &amp;mapExtensions, const string &amp;line)</td></tr>
 <tr class="memdesc:a51fafc027b603c1dad3bfb2c6dfdff6b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Find an extension configured in a line. Return group name if found.  <a href="#a51fafc027b603c1dad3bfb2c6dfdff6b"></a><br/></td></tr>
 <tr class="separator:a51fafc027b603c1dad3bfb2c6dfdff6b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a80841b582a158de7f0d23f813dc70c1a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8cpp.html#a80841b582a158de7f0d23f813dc70c1a">insertLogLine</a> (<a class="el" href="class_config.html">Config</a> &amp;<a class="el" href="moowapp__server_8cpp.html#a699fdf0aff8ead9434d196d94391ac32">c</a>, const string strLog)</td></tr>
-<tr class="separator:a80841b582a158de7f0d23f813dc70c1a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aceda1325ca56c7a2440f8e582c86c5a5"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8cpp.html#aceda1325ca56c7a2440f8e582c86c5a5">analyseLine</a> (<a class="el" href="class_config.html">Config</a> <a class="el" href="moowapp__server_8cpp.html#a699fdf0aff8ead9434d196d94391ac32">c</a>, const string line, set&lt; string &gt; &amp;setModules)</td></tr>
-<tr class="memdesc:aceda1325ca56c7a2440f8e582c86c5a5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Create a <a class="el" href="struct_ssl_log.html" title="Structure qui représente une ligne de access log.">SslLog</a> object from a line of a log file and call insertLogLine.  <a href="#aceda1325ca56c7a2440f8e582c86c5a5"></a><br/></td></tr>
-<tr class="separator:aceda1325ca56c7a2440f8e582c86c5a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6dfafc36e08237b0583d163da7fe18f6"><td class="memItemLeft" align="right" valign="top">unsigned long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8cpp.html#a6dfafc36e08237b0583d163da7fe18f6">readLogFile</a> (<a class="el" href="class_config.html">Config</a> <a class="el" href="moowapp__server_8cpp.html#a699fdf0aff8ead9434d196d94391ac32">c</a>, const string strFile, set&lt; string &gt; &amp;setModules, unsigned long readPos)</td></tr>
-<tr class="memdesc:a6dfafc36e08237b0583d163da7fe18f6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read a log file and analyse every line starting at a specified position.  <a href="#a6dfafc36e08237b0583d163da7fe18f6"></a><br/></td></tr>
-<tr class="separator:a6dfafc36e08237b0583d163da7fe18f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ada23babb484ce7456d0449f4a91aad5b"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8cpp.html#ada23babb484ce7456d0449f4a91aad5b">insertLogLine</a> (const string &amp;strLog)</td></tr>
+<tr class="separator:ada23babb484ce7456d0449f4a91aad5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a44ce949409c9789289484637c5e98466"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8cpp.html#a44ce949409c9789289484637c5e98466">analyseLine</a> (const string &amp;line, set&lt; string &gt; &amp;setModules)</td></tr>
+<tr class="separator:a44ce949409c9789289484637c5e98466"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9f288b87ecd22156d5ef5c3e126a703e"><td class="memItemLeft" align="right" valign="top">unsigned long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8cpp.html#a9f288b87ecd22156d5ef5c3e126a703e">readLogFile</a> (const string &amp;strFile, set&lt; string &gt; &amp;setModules, unsigned long readPos)</td></tr>
+<tr class="separator:a9f288b87ecd22156d5ef5c3e126a703e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Functions to read web logs files for mooWApp. </p>
 <dl class="section author"><dt>Author</dt><dd>Xavier ETCHEBER </dd></dl>
 </div><h2 class="groupheader">Function Documentation</h2>
-<a class="anchor" id="aceda1325ca56c7a2440f8e582c86c5a5"></a>
+<a class="anchor" id="a44ce949409c9789289484637c5e98466"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">bool analyseLine </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="class_config.html">Config</a>&#160;</td>
-          <td class="paramname"><em>c</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const string&#160;</td>
+          <td class="paramtype">const string &amp;&#160;</td>
           <td class="paramname"><em>line</em>, </td>
         </tr>
         <tr>
@@ -175,16 +167,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Create a <a class="el" href="struct_ssl_log.html" title="Structure qui représente une ligne de access log.">SslLog</a> object from a line of a log file and call insertLogLine. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramdir">[in]</td><td class="paramname">c</td><td><a class="el" href="class_config.html" title="Configuration variables for the server.">Config</a> object. </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">line</td><td>to be analysed. </td></tr>
-    <tr><td class="paramdir">[in,out]</td><td class="paramname">setModules</td><td>set of modules to be updated with the visit inserted in DB. </td></tr>
-  </table>
-  </dd>
-</dl>
+<p>Get config object containing the path/name of file to read.</p>
 <p>Check the filter in the line before going further</p>
 <p>Add module in list if not exist </p>
 
@@ -229,46 +212,30 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="a80841b582a158de7f0d23f813dc70c1a"></a>
+<a class="anchor" id="ada23babb484ce7456d0449f4a91aad5b"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">bool insertLogLine </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="class_config.html">Config</a> &amp;&#160;</td>
-          <td class="paramname"><em>c</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
+          <td class="paramtype">const string &amp;&#160;</td>
+          <td class="paramname"><em>strLog</em></td><td>)</td>
           <td></td>
-          <td class="paramtype">const string&#160;</td>
-          <td class="paramname"><em>strLog</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a class="anchor" id="a6dfafc36e08237b0583d163da7fe18f6"></a>
+<a class="anchor" id="a9f288b87ecd22156d5ef5c3e126a703e"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">unsigned long readLogFile </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="class_config.html">Config</a>&#160;</td>
-          <td class="paramname"><em>c</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const string&#160;</td>
+          <td class="paramtype">const string &amp;&#160;</td>
           <td class="paramname"><em>strFile</em>, </td>
         </tr>
         <tr>
@@ -290,17 +257,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Read a log file and analyse every line starting at a specified position. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramdir">[in]</td><td class="paramname">c</td><td><a class="el" href="class_config.html" title="Configuration variables for the server.">Config</a> object. </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">strFile.</td><td></td></tr>
-    <tr><td class="paramdir">[in,out]</td><td class="paramname">setModules</td><td>set of modules. </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">readPos.</td><td></td></tr>
-  </table>
-  </dd>
-</dl>
 <p>obtain file size:</p>
 <p>allocate memory to contain the file:</p>
 <p>copy the file into the memory buffer:</p>
@@ -314,7 +270,7 @@ Functions</h2></td></tr>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_68267d1309a1af8e8297ef4c3efbcdba.html">src</a></li><li class="navelem"><a class="el" href="log__reader_8cpp.html">log_reader.cpp</a></li>
-    <li class="footer">Generated on Wed Nov 21 2012 08:43:12 for mooWApp Server by
+    <li class="footer">Generated on Tue Dec 11 2012 08:14:13 for mooWApp Server by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.2 </li>
   </ul>

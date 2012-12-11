@@ -28,7 +28,7 @@
  <tr style="height: 56px;">
   <td style="padding-left: 0.5em;">
    <div id="projectname">mooWApp Server
-   &#160;<span id="projectnumber">0.2.4</span>
+   &#160;<span id="projectnumber">0.2.5</span>
    </div>
    <div id="projectbrief">WEBApp Statistics Server based on webservers access_log file (on top of BerkeleyDB and mongoose C embedded webserver)</div>
   </td>
@@ -129,37 +129,30 @@ Classes</h2></td></tr>
 Functions</h2></td></tr>
 <tr class="memitem:a08b2c2b54ede604ecd03a0e05e35f606"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8h.html#a08b2c2b54ede604ecd03a0e05e35f606">findExtInLine</a> (std::map&lt; std::string, std::set&lt; std::string &gt; &gt; &amp;mapExtensions, const std::string &amp;line)</td></tr>
 <tr class="separator:a08b2c2b54ede604ecd03a0e05e35f606"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4a1b1534ba36fc11c766dadbb6665df5"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8h.html#a4a1b1534ba36fc11c766dadbb6665df5">insertLogLine</a> (<a class="el" href="class_config.html">Config</a> &amp;<a class="el" href="moowapp__server_8cpp.html#a699fdf0aff8ead9434d196d94391ac32">c</a>, const std::string strLog)</td></tr>
-<tr class="separator:a4a1b1534ba36fc11c766dadbb6665df5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1ae39250a06eacef3839a4f40a2bfa6c"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8h.html#a1ae39250a06eacef3839a4f40a2bfa6c">analyseLine</a> (<a class="el" href="class_config.html">Config</a> <a class="el" href="moowapp__server_8cpp.html#a699fdf0aff8ead9434d196d94391ac32">c</a>, const std::string line, std::set&lt; std::string &gt; &amp;setModules)</td></tr>
-<tr class="separator:a1ae39250a06eacef3839a4f40a2bfa6c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac77ac9ee644433a2c347f64fe4722ddf"><td class="memItemLeft" align="right" valign="top">unsigned long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8h.html#ac77ac9ee644433a2c347f64fe4722ddf">readLogFile</a> (<a class="el" href="class_config.html">Config</a> <a class="el" href="moowapp__server_8cpp.html#a699fdf0aff8ead9434d196d94391ac32">c</a>, const std::string strFile, std::set&lt; std::string &gt; &amp;setModules, unsigned long readPos=0)</td></tr>
-<tr class="separator:ac77ac9ee644433a2c347f64fe4722ddf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a206e62c213f25683d6894a68b41a4153"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8h.html#a206e62c213f25683d6894a68b41a4153">insertLogLine</a> (const std::string &amp;strLog)</td></tr>
+<tr class="separator:a206e62c213f25683d6894a68b41a4153"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9b2743a58e17d9d49a5c653304e9d350"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8h.html#a9b2743a58e17d9d49a5c653304e9d350">analyseLine</a> (const std::string &amp;line, std::set&lt; std::string &gt; &amp;setModules)</td></tr>
+<tr class="separator:a9b2743a58e17d9d49a5c653304e9d350"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a89e01bba744f228ca786063000db7fe1"><td class="memItemLeft" align="right" valign="top">unsigned long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8h.html#a89e01bba744f228ca786063000db7fe1">readLogFile</a> (const std::string &amp;strFile, std::set&lt; std::string &gt; &amp;setModules, unsigned long readPos=0)</td></tr>
+<tr class="separator:a89e01bba744f228ca786063000db7fe1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="var-members"></a>
 Variables</h2></td></tr>
 <tr class="memitem:aa70f299f5c3048f9e1a13b63eb6dfb4c"><td class="memItemLeft" align="right" valign="top">Db *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="log__reader_8h.html#aa70f299f5c3048f9e1a13b63eb6dfb4c">db</a></td></tr>
-<tr class="memdesc:aa70f299f5c3048f9e1a13b63eb6dfb4c"><td class="mdescLeft">&#160;</td><td class="mdescRight">DB pointer.  <a href="#aa70f299f5c3048f9e1a13b63eb6dfb4c"></a><br/></td></tr>
 <tr class="separator:aa70f299f5c3048f9e1a13b63eb6dfb4c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Functions to read web logs files for mooWApp. </p>
 <dl class="section author"><dt>Author</dt><dd>Xavier ETCHEBER </dd></dl>
 </div><h2 class="groupheader">Function Documentation</h2>
-<a class="anchor" id="a1ae39250a06eacef3839a4f40a2bfa6c"></a>
+<a class="anchor" id="a9b2743a58e17d9d49a5c653304e9d350"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">bool analyseLine </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="class_config.html">Config</a>&#160;</td>
-          <td class="paramname"><em>c</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string&#160;</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
           <td class="paramname"><em>line</em>, </td>
         </tr>
         <tr>
@@ -204,46 +197,30 @@ Variables</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="a4a1b1534ba36fc11c766dadbb6665df5"></a>
+<a class="anchor" id="a206e62c213f25683d6894a68b41a4153"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">bool insertLogLine </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="class_config.html">Config</a> &amp;&#160;</td>
-          <td class="paramname"><em>c</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>strLog</em></td><td>)</td>
           <td></td>
-          <td class="paramtype">const std::string&#160;</td>
-          <td class="paramname"><em>strLog</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a class="anchor" id="ac77ac9ee644433a2c347f64fe4722ddf"></a>
+<a class="anchor" id="a89e01bba744f228ca786063000db7fe1"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">unsigned long readLogFile </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="class_config.html">Config</a>&#160;</td>
-          <td class="paramname"><em>c</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string&#160;</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
           <td class="paramname"><em>strFile</em>, </td>
         </tr>
         <tr>
@@ -279,8 +256,6 @@ Variables</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>DB pointer. </p>
-
 </div>
 </div>
 </div><!-- contents -->
@@ -289,7 +264,7 @@ Variables</h2></td></tr>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_68267d1309a1af8e8297ef4c3efbcdba.html">src</a></li><li class="navelem"><a class="el" href="log__reader_8h.html">log_reader.h</a></li>
-    <li class="footer">Generated on Wed Nov 21 2012 08:43:12 for mooWApp Server by
+    <li class="footer">Generated on Tue Dec 11 2012 08:14:13 for mooWApp Server by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.2 </li>
   </ul>

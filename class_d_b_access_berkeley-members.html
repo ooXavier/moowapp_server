@@ -3,7 +3,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
-<title>mooWApp Server: http://localhost:9999/stats_admin_list_mergemodules</title>
+<title>mooWApp Server: Member List</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -45,7 +45,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="index.html"><span>Main&#160;Page</span></a></li>
       <li><a href="pages.html"><span>Related&#160;Pages</span></a></li>
-      <li><a href="annotated.html"><span>Classes</span></a></li>
+      <li class="current"><a href="annotated.html"><span>Classes</span></a></li>
       <li><a href="files.html"><span>Files</span></a></li>
       <li><a href="examples.html"><span>Examples</span></a></li>
       <li>
@@ -66,6 +66,13 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
       </li>
     </ul>
   </div>
+  <div id="navrow2" class="tabs2">
+    <ul class="tablist">
+      <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
+      <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
+    </ul>
+  </div>
 </div><!-- top -->
 <div id="side-nav" class="ui-resizable side-nav-resizable">
   <div id="nav-tree">
@@ -78,7 +85,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
   </div>
 </div>
 <script type="text/javascript">
-$(document).ready(function(){initNavTree('http_1_2_2localhost_19999_2stats_admin_list_mergemodules-example.html','');});
+$(document).ready(function(){initNavTree('class_d_b_access_berkeley.html','');});
 </script>
 <div id="doc-content">
 <!-- window showing the filter options -->
@@ -97,10 +104,22 @@ $(document).ready(function(){initNavTree('http_1_2_2localhost_19999_2stats_admin
 
 <div class="header">
   <div class="headertitle">
-<div class="title">http://localhost:9999/stats_admin_list_mergemodules</div>  </div>
+<div class="title">DBAccessBerkeley Member List</div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="fragment"></div><!-- fragment --> </div><!-- contents -->
+
+<p>This is the complete list of members for <a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a>, including all inherited members.</p>
+<table class="directory">
+  <tr class="even"><td class="entry"><a class="el" href="class_d_b_access_berkeley.html#aa989f9cc663badaf457be3e423c394fb">dbw_add</a>(const std::string strKey, const std::string strValue)</td><td class="entry"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="class_d_b_access_berkeley.html#ab9175361c3b296e3dea6ca7d5f7c8eff">dbw_close</a>()</td><td class="entry"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="class_d_b_access_berkeley.html#ad95eac0934534d74fe3c83fc526e94d9">dbw_compact</a>()</td><td class="entry"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="class_d_b_access_berkeley.html#a871fa0b2e10edfa94d80d9a669208c85">dbw_drop</a>(const char *basedir)</td><td class="entry"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="class_d_b_access_berkeley.html#a9d14a7ad0eacfc8c17bd93e71d1a2b49">dbw_flush</a>()</td><td class="entry"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="class_d_b_access_berkeley.html#aae0f852d88cf930d33e09e935fbb3a08">dbw_get</a>(const std::string strKey, const int flags=0)</td><td class="entry"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="class_d_b_access_berkeley.html#a8dbd033f23437dabd11b850d1171e091">dbw_open</a>(const std::string baseDir, const std::string dbFileName)</td><td class="entry"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="class_d_b_access_berkeley.html#a92649fd90eadba6fc80730019a7ab436">dbw_remove</a>(const std::string strKey)</td><td class="entry"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="class_d_b_access_berkeley.html#aa11811aa72dccffde82a4e800d418727">get</a>()</td><td class="entry"><a class="el" href="class_d_b_access_berkeley.html">DBAccessBerkeley</a></td><td class="entry"><span class="mlabel">inline</span><span class="mlabel">static</span></td></tr>
+</table></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->

@@ -28,7 +28,7 @@
  <tr style="height: 56px;">
   <td style="padding-left: 0.5em;">
    <div id="projectname">mooWApp Server
-   &#160;<span id="projectnumber">0.2.4</span>
+   &#160;<span id="projectnumber">0.2.5</span>
    </div>
    <div id="projectbrief">WEBApp Statistics Server based on webservers access_log file (on top of BerkeleyDB and mongoose C embedded webserver)</div>
   </td>
@@ -145,6 +145,7 @@ Classes</h2></td></tr>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:ad48a67b36819981e659ad41993ddb0aa"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#ad48a67b36819981e659ad41993ddb0aa">getDBModules</a> (set&lt; string &gt; &amp;setModules, const string &amp;modulesLine)</td></tr>
+<tr class="memdesc:ad48a67b36819981e659ad41993ddb0aa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return a set of web modules stored in DB.  <a href="#ad48a67b36819981e659ad41993ddb0aa"></a><br/></td></tr>
 <tr class="separator:ad48a67b36819981e659ad41993ddb0aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae28a0ff255254d63ef7ffb8b0706385e"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#ae28a0ff255254d63ef7ffb8b0706385e">removeDBModules</a> (set&lt; string &gt; &amp;setDeleteModules)</td></tr>
 <tr class="memdesc:ae28a0ff255254d63ef7ffb8b0706385e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Remove some modules from DB storage.  <a href="#ae28a0ff255254d63ef7ffb8b0706385e"></a><br/></td></tr>
@@ -195,12 +196,10 @@ Functions</h2></td></tr>
 <tr class="separator:af6085602e3defc3ac8098e7cac65bf36"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac195f8a341546265599265f82ecbd9e4"><td class="memItemLeft" align="right" valign="top">void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#ac195f8a341546265599265f82ecbd9e4">callback</a> (enum mg_event event, struct mg_connection *conn)</td></tr>
 <tr class="separator:ac195f8a341546265599265f82ecbd9e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aea582f134b3b858bc6e4175d2846957c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#aea582f134b3b858bc6e4175d2846957c">compressionThread</a> (const <a class="el" href="class_config.html">Config</a> <a class="el" href="moowapp__server_8cpp.html#a699fdf0aff8ead9434d196d94391ac32">c</a>)</td></tr>
-<tr class="memdesc:aea582f134b3b858bc6e4175d2846957c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compress the stats DB at a precise time once a day until 7 day from today.  <a href="#aea582f134b3b858bc6e4175d2846957c"></a><br/></td></tr>
-<tr class="separator:aea582f134b3b858bc6e4175d2846957c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a63588063b5d11770c6df1cdf0de66993"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#a63588063b5d11770c6df1cdf0de66993">readLogThread</a> (const <a class="el" href="class_config.html">Config</a> <a class="el" href="moowapp__server_8cpp.html#a699fdf0aff8ead9434d196d94391ac32">c</a>, unsigned long readPos)</td></tr>
-<tr class="memdesc:a63588063b5d11770c6df1cdf0de66993"><td class="mdescLeft">&#160;</td><td class="mdescRight">Do a continuous read of a file and call the line analyser.  <a href="#a63588063b5d11770c6df1cdf0de66993"></a><br/></td></tr>
-<tr class="separator:a63588063b5d11770c6df1cdf0de66993"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a907a7a377a38fab17176893fe802a0c6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#a907a7a377a38fab17176893fe802a0c6">compressionThread</a> ()</td></tr>
+<tr class="separator:a907a7a377a38fab17176893fe802a0c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6daa6821aef23a8db23b630adeb0d778"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#a6daa6821aef23a8db23b630adeb0d778">readLogThread</a> (const unsigned short logFileNb, unsigned long readPos)</td></tr>
+<tr class="separator:a6daa6821aef23a8db23b630adeb0d778"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac75191349227c724e7ab524fa73926b8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#ac75191349227c724e7ab524fa73926b8">handler_function</a> (int signum)</td></tr>
 <tr class="memdesc:ac75191349227c724e7ab524fa73926b8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Handler to close properly db and threads.  <a href="#ac75191349227c724e7ab524fa73926b8"></a><br/></td></tr>
 <tr class="separator:ac75191349227c724e7ab524fa73926b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -209,12 +208,6 @@ Functions</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="var-members"></a>
 Variables</h2></td></tr>
-<tr class="memitem:aa70f299f5c3048f9e1a13b63eb6dfb4c"><td class="memItemLeft" align="right" valign="top">Db *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#aa70f299f5c3048f9e1a13b63eb6dfb4c">db</a> = NULL</td></tr>
-<tr class="memdesc:aa70f299f5c3048f9e1a13b63eb6dfb4c"><td class="mdescLeft">&#160;</td><td class="mdescRight">DB pointer.  <a href="#aa70f299f5c3048f9e1a13b63eb6dfb4c"></a><br/></td></tr>
-<tr class="separator:aa70f299f5c3048f9e1a13b63eb6dfb4c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a699fdf0aff8ead9434d196d94391ac32"><td class="memItemLeft" align="right" valign="top"><a class="el" href="class_config.html">Config</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#a699fdf0aff8ead9434d196d94391ac32">c</a></td></tr>
-<tr class="memdesc:a699fdf0aff8ead9434d196d94391ac32"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read configuration file.  <a href="#a699fdf0aff8ead9434d196d94391ac32"></a><br/></td></tr>
-<tr class="separator:a699fdf0aff8ead9434d196d94391ac32"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0ba51deb3be6dd78d799c654b3120e71"><td class="memItemLeft" align="right" valign="top">boost::mutex&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="moowapp__server_8cpp.html#a0ba51deb3be6dd78d799c654b3120e71">mutex</a></td></tr>
 <tr class="memdesc:a0ba51deb3be6dd78d799c654b3120e71"><td class="mdescLeft">&#160;</td><td class="mdescRight">Mutex for thread blocking.  <a href="#a0ba51deb3be6dd78d799c654b3120e71"></a><br/></td></tr>
 <tr class="separator:a0ba51deb3be6dd78d799c654b3120e71"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -230,7 +223,7 @@ Variables</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Web Statistics DB Server aka : mooWApp. </p>
 <dl class="section author"><dt>Author</dt><dd>Xavier ETCHEBER </dd></dl>
-<dl class="section version"><dt>Version</dt><dd>0.2.4 </dd></dl>
+<dl class="section version"><dt>Version</dt><dd>0.2.5 </dd></dl>
 </div><h2 class="groupheader">Function Documentation</h2>
 <a class="anchor" id="ac195f8a341546265599265f82ecbd9e4"></a>
 <div class="memitem">
@@ -258,27 +251,20 @@ Variables</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="aea582f134b3b858bc6e4175d2846957c"></a>
+<a class="anchor" id="a907a7a377a38fab17176893fe802a0c6"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">void compressionThread </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="class_config.html">Config</a>&#160;</td>
-          <td class="paramname"><em>c</em></td><td>)</td>
+          <td class="paramname"></td><td>)</td>
           <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Compress the stats DB at a precise time once a day until 7 day from today. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramdir">[in]</td><td class="paramname">c</td><td><a class="el" href="class_config.html" title="Configuration variables for the server.">Config</a> object. </td></tr>
-  </table>
-  </dd>
-</dl>
+<p>Get config object</p>
+<p>Get DB accessor</p>
 <p>At the first start do a compression from the first day of the year</p>
 <p>Hold the delay for non compressed stats</p>
 <p>Specify a fixed time in the day : 03h00 the next day for the next compression of DB</p>
@@ -555,6 +541,17 @@ Variables</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Return a set of web modules stored in DB. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">c</td><td><a class="el" href="class_config.html" title="Configuration variables for the server.">Config</a> object containing the modules to be excluded </td></tr>
+    <tr><td class="paramdir">[in,out]</td><td class="paramname">setModules</td><td>A set to store the web modules names. </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">modulesLine</td><td>Key in DB to look for modules. </td></tr>
+  </table>
+  </dd>
+</dl>
+<p>Get DB accessor</p>
 <p>Create a set of all known applications in DB</p>
 <p>Exclude modules configuration </p>
 
@@ -645,10 +642,11 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Announce yourself</p>
 <p>Read configuration file</p>
-<p>Open the database</p>
+<p>Get DB accessor</p>
+<p>Open one database for each log file configured</p>
 <p>Attach handler for SIGINT</p>
 <p>DB Compact task set-up</p>
-<p>Start reading file</p>
+<p>Start reading file for each one configured</p>
 <p>Json web server set-up</p>
 <p>Wait until shutdown with SIGINT</p>
 <p>Stop properly</p>
@@ -656,15 +654,15 @@ Variables</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="a63588063b5d11770c6df1cdf0de66993"></a>
+<a class="anchor" id="a6daa6821aef23a8db23b630adeb0d778"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">void readLogThread </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="class_config.html">Config</a>&#160;</td>
-          <td class="paramname"><em>c</em>, </td>
+          <td class="paramtype">const unsigned short&#160;</td>
+          <td class="paramname"><em>logFileNb</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -679,15 +677,11 @@ Variables</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Do a continuous read of a file and call the line analyser. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramdir">[in]</td><td class="paramname">c</td><td><a class="el" href="class_config.html" title="Configuration variables for the server.">Config</a> object containing the path/name of file to read. </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">readPos</td><td>Position in file to read (default: 0). </td></tr>
-  </table>
-  </dd>
-</dl>
+<p>Read pos file for line number to start in log file</p>
+<p>Get config object containing the path/name of file to read.</p>
+<p>Get DB accessor</p>
+<p>Get config informations, if fail exit</p>
+<p>Loop</p>
 <p>Write to file atomically</p>
 <p>File ext format date :</p>
 <p>Reconstruct list of modules</p>
@@ -718,6 +712,10 @@ Variables</h2></td></tr>
   </table>
   </dd>
 </dl>
+<p>Get DB accessor</p>
+<p>Create a set of all known applications in DB</p>
+<p>Remove "modules to be deleted" from modules set</p>
+<p>Convert modules set to DB line </p>
 
 </div>
 </div>
@@ -755,6 +753,7 @@ Variables</h2></td></tr>
 </dl>
 <p>Get parameters in request.</p>
 <p>Check parameters values</p>
+<p>Get DB accessor</p>
 <p>Construct response</p>
 <p>Update list of deleted modules in DB</p>
 <dl class="todo"><dt><b><a class="el" href="todo.html#_todo000002">Todo:</a></b></dt><dd>Do use merge </dd></dl>
@@ -835,6 +834,7 @@ Variables</h2></td></tr>
 </dl>
 <p>Get parameters in request.</p>
 <p>Check parameters values</p>
+<p>Get DB accessor</p>
 <p>Set begining JSON string in response.</p>
 <p>Set Mode and Date in response.</p>
 <p>Convert timestamp to Y-m-d</p>
@@ -891,6 +891,7 @@ Variables</h2></td></tr>
 </dl>
 <p>Get parameters in request.</p>
 <p>Check parameters values</p>
+<p>Get DB accessor</p>
 <p>Set begining JSON string in response.</p>
 <p>Set each date to according offset in response.</p>
 <p>Set Mode and Date in response.</p>
@@ -935,6 +936,7 @@ Variables</h2></td></tr>
 </dl>
 <p>Get parameters in request.</p>
 <p>Check parameters values</p>
+<p>Get DB accessor</p>
 <p>Set begining JSON string in response.</p>
 <p>Create a set for the Dates to loop easily</p>
 <p>Save Year-Month for later</p>
@@ -981,6 +983,7 @@ Variables</h2></td></tr>
 </dl>
 <p>Get parameters in request.</p>
 <p>Check parameters values</p>
+<p>Get DB accessor</p>
 <p>Set begining JSON string in response.</p>
 <p>Create a set for the Dates to loop easily</p>
 <p>Save Year-Month for later</p>
@@ -1115,20 +1118,6 @@ Variables</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Variable Documentation</h2>
-<a class="anchor" id="a699fdf0aff8ead9434d196d94391ac32"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname"><a class="el" href="class_config.html">Config</a> c</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Read configuration file. </p>
-
-</div>
-</div>
 <a class="anchor" id="a38412235d74c0d3479659a992f2ed736"></a>
 <div class="memitem">
 <div class="memproto">
@@ -1140,20 +1129,6 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Pointer of request's context. </p>
-
-</div>
-</div>
-<a class="anchor" id="aa70f299f5c3048f9e1a13b63eb6dfb4c"></a>
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">Db* db = NULL</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>DB pointer. </p>
 
 </div>
 </div>
@@ -1214,7 +1189,7 @@ Variables</h2></td></tr>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_68267d1309a1af8e8297ef4c3efbcdba.html">src</a></li><li class="navelem"><a class="el" href="moowapp__server_8cpp.html">moowapp_server.cpp</a></li>
-    <li class="footer">Generated on Wed Nov 21 2012 08:43:12 for mooWApp Server by
+    <li class="footer">Generated on Tue Dec 11 2012 08:14:13 for mooWApp Server by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.2 </li>
   </ul>

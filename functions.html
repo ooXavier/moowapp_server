@@ -28,7 +28,7 @@
  <tr style="height: 56px;">
   <td style="padding-left: 0.5em;">
    <div id="projectname">mooWApp Server
-   &#160;<span id="projectnumber">0.2.4</span>
+   &#160;<span id="projectnumber">0.2.5</span>
    </div>
    <div id="projectbrief">WEBApp Statistics Server based on webservers access_log file (on top of BerkeleyDB and mongoose C embedded webserver)</div>
   </td>
@@ -139,9 +139,6 @@ $(document).ready(function(){initNavTree('functions.html','');});
 <li>COMPRESSION
 : <a class="el" href="class_config.html#aa312e2f47a9d9ef1a2c4a773ab8bd22d">Config</a>
 </li>
-<li>Config()
-: <a class="el" href="class_config.html#a4abd0756d0f6be9973ff6571980de930">Config</a>
-</li>
 </ul>
 
 
@@ -173,14 +170,29 @@ $(document).ready(function(){initNavTree('functions.html','');});
 <li>DB_PATH
 : <a class="el" href="class_config.html#adefcc26da2b67d1b8b28864fc6aced1a">Config</a>
 </li>
-<li>DEBUG_APP_OTHERS
-: <a class="el" href="class_config.html#a94ead30e0289d9789ae884f598774ee1">Config</a>
+<li>dbw_add()
+: <a class="el" href="class_d_b_access_berkeley.html#aa989f9cc663badaf457be3e423c394fb">DBAccessBerkeley</a>
 </li>
-<li>DEBUG_LOGS
-: <a class="el" href="class_config.html#acf953a6beb4e0c08660e411ed3db5b45">Config</a>
+<li>dbw_close()
+: <a class="el" href="class_d_b_access_berkeley.html#ab9175361c3b296e3dea6ca7d5f7c8eff">DBAccessBerkeley</a>
 </li>
-<li>DEBUG_REQUESTS
-: <a class="el" href="class_config.html#aca9aaaa71ab65fda97efe28a753cef8b">Config</a>
+<li>dbw_compact()
+: <a class="el" href="class_d_b_access_berkeley.html#ad95eac0934534d74fe3c83fc526e94d9">DBAccessBerkeley</a>
+</li>
+<li>dbw_drop()
+: <a class="el" href="class_d_b_access_berkeley.html#a871fa0b2e10edfa94d80d9a669208c85">DBAccessBerkeley</a>
+</li>
+<li>dbw_flush()
+: <a class="el" href="class_d_b_access_berkeley.html#a9d14a7ad0eacfc8c17bd93e71d1a2b49">DBAccessBerkeley</a>
+</li>
+<li>dbw_get()
+: <a class="el" href="class_d_b_access_berkeley.html#aae0f852d88cf930d33e09e935fbb3a08">DBAccessBerkeley</a>
+</li>
+<li>dbw_open()
+: <a class="el" href="class_d_b_access_berkeley.html#a8dbd033f23437dabd11b850d1171e091">DBAccessBerkeley</a>
+</li>
+<li>dbw_remove()
+: <a class="el" href="class_d_b_access_berkeley.html#a92649fd90eadba6fc80730019a7ab436">DBAccessBerkeley</a>
 </li>
 </ul>
 
@@ -221,6 +233,10 @@ $(document).ready(function(){initNavTree('functions.html','');});
 
 
 <h3><a class="anchor" id="index_g"></a>- g -</h3><ul>
+<li>get()
+: <a class="el" href="class_config.html#a5154d96acc76c1fae8c564f3705fe197">Config</a>
+, <a class="el" href="class_d_b_access_berkeley.html#aa11811aa72dccffde82a4e800d418727">DBAccessBerkeley</a>
+</li>
 <li>group
 : <a class="el" href="struct_ssl_log.html#a6a5089fcd011e5c6d9f1d53a28d64a48">SslLog</a>
 </li>
@@ -238,17 +254,17 @@ $(document).ready(function(){initNavTree('functions.html','');});
 <li>LISTENING_PORT
 : <a class="el" href="class_config.html#a46d2e4d85a8f27223d6fc8fdac33ee36">Config</a>
 </li>
-<li>LOG_FILE_FORMAT
-: <a class="el" href="class_config.html#a0b946011316ea8705873079ba6119d3b">Config</a>
-</li>
-<li>LOG_FILE_PATH
-: <a class="el" href="class_config.html#a262594868a27563d5cf2fe085ec5492a">Config</a>
-</li>
 <li>logKey
 : <a class="el" href="struct_ssl_log.html#ab24df5ff212da6ebf3c72aace370bec9">SslLog</a>
 </li>
 <li>LOGS_COMPRESSION_INTERVAL
 : <a class="el" href="class_config.html#ab71c18bdee7ce9d12c5a7d92df2d5228">Config</a>
+</li>
+<li>LOGS_FILE_NB
+: <a class="el" href="class_config.html#a6093282a26071d3e2e5ad25b8d199c52">Config</a>
+</li>
+<li>LOGS_FILES_CONFIG
+: <a class="el" href="class_config.html#a3aa3e6bb68297663b5bc9293b6f962ce">Config</a>
 </li>
 <li>LOGS_READ_INTERVAL
 : <a class="el" href="class_config.html#a2cddfe22d708f8f37f6434541a5a6548">Config</a>
@@ -290,7 +306,7 @@ $(document).ready(function(){initNavTree('functions.html','');});
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer">Generated on Wed Nov 21 2012 08:43:12 for mooWApp Server by
+    <li class="footer">Generated on Tue Dec 11 2012 08:14:13 for mooWApp Server by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.2 </li>
   </ul>
