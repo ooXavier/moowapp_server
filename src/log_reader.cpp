@@ -13,6 +13,7 @@
 
 // Boost
 #include <boost/algorithm/string.hpp> // Split
+#include <boost/lexical_cast.hpp> // lexical_cast
 #include <boost/spirit/include/karma.hpp> // int to string
 #include <boost/lambda/lambda.hpp>
 #include <boost/filesystem.hpp> // includes all needed Boost.Filesystem declarations
@@ -79,28 +80,54 @@ string findExtInLine(map<string, set<string> > &mapExtensions, const string &lin
  *
  * \param[in] strLog String format of log line to insert in DB.
  */
-bool insertLogLine(const string &strLog) {
+bool insertLogLine(const string &strLog, const string &responseSize, const string &responseDuration) {
   // Get DB accessor
   DBAccessBerkeley &dbA = DBAccessBerkeley::get();
   
+  int iVisit = 0;
   string val = dbA.dbw_get(strLog);
-  if (val.length() > 0) { // If Key already exist in db add +1 visit
-    DEBUG_LOGS(" =" << val << " +1 ");
-    int iVisit = 0;
-	  char buffer[10];
+  if (val.length() > 0) {
+    /// If Key already exist in db add +1 visit
+    //DEBUG_LOGS("Read: " << strLog << "=" << val);
+    char buffer[10];
     sscanf(val.c_str(), "%d", &iVisit);
     memset(buffer, 0, sizeof buffer);
-    sprintf(buffer, "%d", iVisit+1);
+    sprintf(buffer, "%d", iVisit++);
     val = buffer;
-  } else { // else insert new key with 1 visit  
+  } else { /// Else insert new key with 1 visit
+    iVisit = 1;
     val = "1";
-    DEBUG_LOGS(" Set to 1 ");
   }
-
+  DEBUG_LOGS("Set: " << strLog << "=" << val);
+  
   if (!dbA.dbw_add(strLog, val))
     cerr << "db.error().name()" << endl;
+
+  // Insert response size
+  if (responseSize != "0") {
+    val = dbA.dbw_get(strLog+"/sz");
+    if (val.length() > 0) {
+      val += "." + responseSize;
+    } else {
+      val = responseSize;
+    }
+    if (!dbA.dbw_add(strLog+"/sz", val))
+      cerr << "db.error().name()" << endl;
+  }
   
-	if (val == "1") return true;
+  // Insert response duration
+  if (responseDuration != "0") {
+    val = dbA.dbw_get(strLog+"/ti");
+    if (val.length() > 0) {
+      val += "." + responseDuration;
+    } else {
+      val = responseDuration;
+    }
+    if (!dbA.dbw_add(strLog+"/ti", val))
+      cerr << "db.error().name()" << endl;
+  }
+  
+	if (iVisit == 1) return true;
 	return false;
 }
 
@@ -140,10 +167,10 @@ bool analyseLine(const unsigned short &logFileNb, const string &line, set<string
       logLine.type = "2";// Keep only URL with return code " 302 "
     } else {
       /*foundUrl=line.find(c.FILTER_URL3);
-      if ((foundExt!=string::npos) && (foundUrl!=string::npos)) {
-        logLine.type = "3";// Keep only URL with return code " 404 "
-      } else {*/
-        return false;
+       if ((foundExt!=string::npos) && (foundUrl!=string::npos)) {
+       logLine.type = "3";// Keep only URL with return code " 404 "
+       } else {*/
+      return false;
       //}
     }
   }
@@ -193,25 +220,24 @@ bool analyseLine(const unsigned short &logFileNb, const string &line, set<string
   size_t slash = strs[6].find("/", 1);
   if (slash == string::npos) return false;
   logLine.app = strs[6].substr(1, slash-1);
-  /*if (strs[9] == "-") {
+  if (strs[9] == "-") {
     logLine.responseSize = "0";
   } else {
     logLine.responseSize = strs[9];
   }
-  logLine.responseDuration = strs[10];*/
+  logLine.responseDuration = strs[10];
   
   // Set Key
   logLine.logKey = logLine.app+'/'+logLine.group+'/'+logLine.type+'/'+logLine.date_d+'/';
   
-  DEBUG_LOGS(" in App: " << logLine.app << " at " << logLine.date_d << " " << logLine.date_t
-                         << " as " << logLine.group << " " << logLine.type << " (key set as " << logLine.logKey << logLine.date_t_minutes << ")");
+  DEBUG_LOGS(logLine.app << " at " << logLine.date_d << " " << logLine.date_t << " as " << logLine.group << " " << logLine.type << " size:" << logLine.responseSize);
   
   string str = logLine.logKey+logLine.date_t_hours;
   insertLogLine(str);
   str = logLine.logKey+logLine.date_t;
   insertLogLine(str);
   str = logLine.logKey+logLine.date_t_minutes;
-  if (insertLogLine(str)) {
+  if (insertLogLine(str, logLine.responseSize, logLine.responseDuration)) {
     /// Add module in list if not exist
     setModules.insert(logLine.app);
     DEBUG_LOGS("+1 module for " << logLine.app);
