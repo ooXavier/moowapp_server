@@ -35,6 +35,14 @@ struct SslLog {
 };
 
 /*!
+ * \fn int getMonth(const string &month)
+ * \brief Return month number from short string representation.
+ *
+ * \param[in] month as 3 chars.
+ */
+int getMonth(const std::string &month);
+
+/*!
  * \fn string findExtInLine(map<string, set<string> > &mapExtensions, const string &line)
  * \brief Find an extension configured in a line. Return group name if found.
  *

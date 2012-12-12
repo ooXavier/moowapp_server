@@ -9,11 +9,10 @@
 #include <vector> // Splited string
 #include <set> // Set of modules
 #include <stdio.h> // fopen, fseek, ftell, fclose, sscanf, sprintf
+#include <iomanip> // setw, setfill
 
 // Boost
 #include <boost/algorithm/string.hpp> // Split
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/date_time/gregorian/parsers.hpp>
 #include <boost/spirit/include/karma.hpp> // int to string
 #include <boost/lambda/lambda.hpp>
 #include <boost/filesystem.hpp> // includes all needed Boost.Filesystem declarations
@@ -26,6 +25,18 @@
 #include "log_reader.h"
 
 using namespace std;
+
+/*!
+ * \fn int getMonth(const string &month)
+ * \brief Return month number from short string representation.
+ *
+ * \param[in] month as 3 chars.
+ */
+int getMonth(const string &month) {
+  for(int i = 1; i<=12; i++)
+    if(month == MONTHS[i]) return i;
+  return 0;
+}
 
 /*!
  * \fn string findExtInLine(map<string, set<string> > &mapExtensions, const string &line)
@@ -141,41 +152,42 @@ bool analyseLine(const unsigned short &logFileNb, const string &line, set<string
   
   //cout << "line: " << line << endl;
   /*unsigned int iHour = 0, iMin = 0;
-  unsigned int day, year;
-  char month[4];
-  char url[2084];
-  char prenom[36];
-  char nom[256];
-  sscanf(line.c_str(), "%*d.%*d.%*d.%*d - - [%u/%3s/%u:%u:%u:%*d %*c%*d] \"%*s %s HTTP/1.%*c\" %*d %*s %*d %*s %*s %s %s", &day, month, &year, &iHour, &iMin, url, prenom, nom);
-  */
+   unsigned int day, year;
+   char month[4];
+   char url[2084];
+   char prenom[36];
+   char nom[256];
+   sscanf(line.c_str(), "%*d.%*d.%*d.%*d - - [%u/%3s/%u:%u:%u:%*d %*c%*d] \"%*s %s HTTP/1.%*c\" %*d %*s %*d %*s %*s %s %s", &day, month, &year, &iHour, &iMin, url, prenom, nom);
+   */
   /*cout << "day: " << day << endl;
-  cout << "month: " << month << endl;
-  cout << "year: " << year << endl;
-  cout << "url: " << url << endl;
-  cout << "prenom: " << prenom << endl;
-  cout << "nom: " << nom << endl;*/
+   cout << "month: " << month << endl;
+   cout << "year: " << year << endl;
+   cout << "url: " << url << endl;
+   cout << "prenom: " << prenom << endl;
+   cout << "nom: " << nom << endl;*/
   
   // First data is a true IP with Boost
   //boost::system::error_code ec;
   //boost::asio::ip::address::from_string(strs[0], ec);
   //if (ec) return false;
   
-  // Get Date
-  //char s_date[12];
-  //sprintf(s_date, "%d/%s/%d", day, month, year);
-  vector<string> datev;
-  string ds = strs[3].substr(1, strs[3].length());
-  boost::split(datev, ds, boost::is_any_of(":"));
-  // Date parsing
-  boost::date_time::format_date_parser<boost::gregorian::date, char> parser(format, std::locale("C"));
-  boost::date_time::special_values_parser<boost::gregorian::date, char> svp;
-  boost::gregorian::date d = parser.parse_date(datev[0], format, svp);
-  logLine.date_d = to_iso_extended_string(d); // Save date to YYYY-MM-DD with zeros
-  
+  // Get Date and Time
+  unsigned int iHour = 0, iMin = 0, day = 0, year = 0;
+  char month[4];
+  sscanf(strs[3].c_str(), "[%u/%3s/%u:%u:%u:%*d", &day, month, &year, &iHour, &iMin);
+  ostringstream oss;
+  oss << year << "-" << setw(2) << setfill('0') << getMonth((string) month) << "-" << setw(2) << setfill('0') << day;
+  logLine.date_d = oss.str();
+  oss.str("");
   // Get Time
-  logLine.date_t_minutes = datev[1] + datev[2]; // Minutes mode
-  logLine.date_t = datev[1] + datev[2][0]; // 10 Minutes mode
-  logLine.date_t_hours = datev[1]; // Hours mode
+  oss << setw(2) << setfill('0') << iHour << setw(2) << setfill('0') << iMin;
+  logLine.date_t_minutes = oss.str(); // Minutes mode
+  oss.str("");
+  oss << setw(2) << setfill('0') << iHour << (int) iMin / 10;
+  logLine.date_t = oss.str(); // 10 Minutes mode
+  oss.str("");
+  oss << setw(2) << setfill('0') << iHour;
+  logLine.date_t_hours = oss.str(); // Hours mode
 	
   // Get Module
   size_t slash = strs[6].find("/", 1);
@@ -202,9 +214,9 @@ bool analyseLine(const unsigned short &logFileNb, const string &line, set<string
   if (insertLogLine(str)) {
     /// Add module in list if not exist
     setModules.insert(logLine.app);
-    DEBUG_LOGS(" +1 module for " << logLine.app);
+    DEBUG_LOGS("+1 module for " << logLine.app);
   }
-
+  
   return true;
 }
 
@@ -222,7 +234,7 @@ unsigned long readLogFile(const unsigned short &logFileNb, const string &strFile
   unsigned long size, lSize;
   FILE * pFile = fopen(strFile.c_str(), "rb");
   if (pFile == NULL) {
-    cerr << "Error opening file: " << strFile << endl;  
+    cerr << "Error opening file: " << strFile << endl;
     return 0;
   }
   
@@ -235,11 +247,11 @@ unsigned long readLogFile(const unsigned short &logFileNb, const string &strFile
   }
   lSize -= readPos;
   fseek(pFile, readPos, SEEK_SET);
-
+  
   /// allocate memory to contain the file:
   buffer = (char*) malloc (sizeof(char) * lSize);
   if (buffer == NULL) {cerr << endl << "Memory error" << endl; return 0;}
-
+  
   /// copy the file into the memory buffer:
   size_t result = fread (buffer, 1, lSize, pFile);
   if (result != lSize) {cerr << endl << "Reading error" << endl; return 0;}
@@ -247,7 +259,7 @@ unsigned long readLogFile(const unsigned short &logFileNb, const string &strFile
   /// all of the data has been read; close the file.
   size = ftell(pFile);
   fclose (pFile);
-
+  
   int i = 0; // nb of lines in file
   int myI = 0; // nb of lines matching stg
   

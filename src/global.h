@@ -28,6 +28,8 @@ static const char *standard_json_reply = "HTTP/1.1 200 OK\r\n"
   "X-Powered-By: IHM-Stat-Server\r\n"
   "Connection: close\r\n\r\n";
 
+static const std::string MONTHS [12] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
 /*!
  * \def DB_TIMES_SIZE 144
  * \brief Size of dbTimes.
