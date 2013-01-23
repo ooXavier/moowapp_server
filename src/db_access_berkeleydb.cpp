@@ -22,7 +22,7 @@ bool DBAccessBerkeley::dbw_open(const string baseDir, const string bdbFileName) 
   u_int32_t env_flags =
     DB_CREATE     |   // If the environment does not exist, create it.
     DB_INIT_LOCK  |   // Initialize locking
-    DB_INIT_LOG   |   // Initialize logging
+    //DB_INIT_LOG   |   // Initialize logging
     DB_INIT_MPOOL |   // Initialize the cache
     DB_PRIVATE    |   // single process
     DB_THREAD;        // free-threaded (thread-safe)
@@ -54,7 +54,7 @@ bool DBAccessBerkeley::dbw_open(const string baseDir, const string bdbFileName) 
   return false;
 }
 
-string DBAccessBerkeley::dbw_get(const string strKey, const int flags) {
+string DBAccessBerkeley::dbw_get(const string strKey, const int flags/* = 0 */) {
   Dbt key(const_cast<char*>(strKey.data()), strKey.size());
   
   Dbt data;

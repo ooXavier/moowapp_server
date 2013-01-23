@@ -46,8 +46,7 @@ Config::Config(string cfgFile) {
     
     // Parse the line if it contains a delimiter
     pos delimPos = str.find(delimiter);
-    if(delimPos < string::npos)
-    {
+    if(delimPos < string::npos) {
       // Extract the key
       string key = str.substr(0, delimPos);
       str.replace(0, delimPos+skip, "");

@@ -40,41 +40,47 @@ int main(int argc, char* argv[]) {
   /// Reconstruct list of modules
   set<string> setModules;
   set<string>::iterator it, itLast;
-  string strModules = dbA.dbw_get("modules");
+  string strModules = "";//dbA.dbw_get("modules");
   if (strModules.length() > 0) {
     cout << "START > Modules=" << strModules << endl;
     boost::split(setModules, strModules, boost::is_any_of("/"));
+  } else {
+    cout << "START with 0 modules." << endl;
   }
   
   /// Loop through files to get access_log files
   string fileName;
-  boost::filesystem::path dir_path(c.FILTER_PATH);
-  if (exists(dir_path)) {
-    boost::filesystem::directory_iterator end_itr; // default construction yields past-the-end
-    for (boost::filesystem::directory_iterator itr(dir_path) ; itr != end_itr ; ++itr ) {
-      if (is_directory(itr->status())) continue;
+  try {
+    boost::filesystem::path dir_path(c.FILTER_PATH);
+    if (exists(dir_path)) {
+      boost::filesystem::directory_iterator end_itr; // default construction yields past-the-end
+      for (boost::filesystem::directory_iterator itr(dir_path); itr!=end_itr; ++itr) { //FAIL with gcc4.7
+        if (is_directory(itr->status())) continue;
       
-      fileName = itr->path().filename().string();
-      bool ok = true;
-      /// Remove filenames from arguments from files to be analyzed
-      for(int i=1; i < argc; i++) {
-        if(strcmp(fileName.c_str(), argv[i]) == 0) {
-          ok = false;
-          break;
+        /// For each file
+        fileName = itr->path().filename().string();
+        bool ok = true;
+        /// Remove filenames from arguments from files to be analyzed
+        for(int i=1; i < argc; i++) {
+          if(strcmp(fileName.c_str(), argv[i]) == 0) {
+            ok = false;
+            break;
+          }
+        }
+      
+        /// For each log file matching name parse lines
+        founds = fileName.find(c.FILTER_SSL);
+        if (ok && founds!=string::npos) {
+          cout << "Reading " << fileName << endl;
+          readLogFile(1, itr->path().string(), setModules);
         }
       }
-      
-      /// For each log file matching name parse lines
-      founds = fileName.find(c.FILTER_SSL);
-      if (ok && founds!=string::npos) {
-        cout << "Reading " << fileName << " ..." << flush;
-        readLogFile(1, itr->path().string(), setModules);
-        cout << " done." << endl;
-      }
-    }
     } else {
-      cerr << "Wrong set up. Directory " << dir_path << " does not exists." << endl;
+     cerr << "Wrong set up. Directory " << dir_path << " does not exists." << endl;
     }
+  } catch (const boost::filesystem::filesystem_error& ex) {
+    cout << ex.what() << endl;
+  }
   
   /// Update list of modules in DB
   strModules = "";

@@ -35,14 +35,6 @@ struct SslLog {
 };
 
 /*!
- * \fn int getMonth(const string &month)
- * \brief Return month number from short string representation.
- *
- * \param[in] month as 3 chars.
- */
-int getMonth(const std::string &month);
-
-/*!
  * \fn string findExtInLine(map<string, set<string> > &mapExtensions, const string &line)
  * \brief Find an extension configured in a line. Return group name if found.
  *
@@ -70,13 +62,14 @@ bool insertLogLine(const std::string &strLog);
 bool analyseLine(const unsigned short &logFileNb, const std::string &line, std::set<std::string> &setModules);
 
 /*!
- * \fn unsigned long readLogFile(string strFile, set<string> &setModules)
+ * \fn unsigned long readLogFile(const unsigned short &logFileNb, const std::string &strFile, std::set<std::string> &setModules, uint64_t readPos = 0)
  * \brief Read a file and call the line analyser for each line
  *
  * \param logFileNb Log file number in configuration (for debugging purpose).
  * \param strFile The file to be used as log file.
  * \param setModules The set of web modules already known.
+ * \param readPos The position in the log file strFile.
  */
-unsigned long readLogFile(const unsigned short &logFileNb, const std::string &strFile, std::set<std::string> &setModules, unsigned long readPos = 0);
+uint64_t readLogFile(const unsigned short &logFileNb, const std::string &strFile, std::set<std::string> &setModules, uint64_t readPos = 0);
 
 #endif // MOOWAPP_STATS_LOG_READER_H_

@@ -8,15 +8,15 @@
 #define MOOWAPP_STATS_GLOBAL_H_
 
 #ifdef DEBUG_LOGS
-#define DEBUG_LOGS(str) do { std::cout << str << std::endl; } while( false )
+#define DEBUG_LOGS_FUNC(str) do { std::cout << str << std::endl; } while( false )
 #else
-#define DEBUG_LOGS(str) do { } while ( false )
+#define DEBUG_LOGS_FUNC(str) do { } while ( false )
 #endif
 
 #ifdef DEBUG_REQ
-#define DEBUG_REQ(str) do { std::cout << str << std::endl; } while( false )
+#define DEBUG_REQ_FUNC(str) do { std::cout << str << std::endl; } while( false )
 #else
-#define DEBUG_REQ(str) do { } while ( false )
+#define DEBUG_REQ_FUNC(str) do { } while ( false )
 #endif
 
 static const std::string format("%d/%b/%Y");
@@ -139,5 +139,17 @@ static const std::string dbTimesHours [DB_TIMES_HOURS_SIZE] = {
 
 static const std::string KEY_MODULES("modules");
 static const std::string KEY_DELETED_MODULES("modules-deleted");
+
+/*!
+ * \fn int getMonth(const string &month)
+ * \brief Return month number from short string representation.
+ *
+ * \param[in] month as 3 chars.
+ */
+int getMonth(const std::string &month);
+
+unsigned int stringToInt(const std::string &val);
+bool intToString(std::string &str, const unsigned int val);
+void printProgBar(int percent);
 
 #endif // MOOWAPP_STATS_GLOBAL_H_

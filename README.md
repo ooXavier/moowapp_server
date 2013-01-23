@@ -38,7 +38,7 @@ Count visits for certains URLs each day and let the stats be accessible thru an 
 
 3. Build app with
 
-    make
+    make && make -f MakefileInsert
 4. Change the configuration.ini to set-up your folder to your web logs files
 5. Then run...
 
@@ -55,6 +55,29 @@ Check if the app is running with
 Stop with
 
     ./moowapp.sh stop
+
+## Insertion program usage
+
+If you want to insert data from existing log files before, running the server you can launch
+
+    bin/moowapp_insert
+
+You will get for example :
+
+	<pre>
+  DB /data/berkeleydb/storage.db connected
+  START with 0 modules.
+  Reading ssl_access.log.2012-10-09
+  [==================================================] 100%     
+  Reading ssl_access.log.2012-10-10
+  [==================================================] 100%     
+  Reading ssl_access.log.2012-10-30
+  [==================================================] 100%     
+  NB Modules: 162
+  Removed
+  Re-added
+  Closing db connection
+  499.43 s</pre>
 
 ## Changelogs
 ### V0.1
@@ -81,3 +104,4 @@ Stop with
 
 ## Performance number
 - V0.2.3 : Core 2 Duo 2,8Ghz can filter and add in DB up to 11 926 lines / second.
+- V0.2.6 : Core i7 3,4Ghz can filter and add in DB up to 18 901 lines / second (with 5x more data stored).

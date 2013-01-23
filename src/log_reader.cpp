@@ -28,18 +28,6 @@
 using namespace std;
 
 /*!
- * \fn int getMonth(const string &month)
- * \brief Return month number from short string representation.
- *
- * \param[in] month as 3 chars.
- */
-int getMonth(const string &month) {
-  for(int i = 1; i<=12; i++)
-    if(month == MONTHS[i]) return i;
-  return 0;
-}
-
-/*!
  * \fn string findExtInLine(map<string, set<string> > &mapExtensions, const string &line)
  * \brief Find an extension configured in a line. Return group name if found.
  *
@@ -49,23 +37,27 @@ int getMonth(const string &month) {
 string findExtInLine(map<string, set<string> > &mapExtensions, const string &line) {
   string subLine;
   /// Keep url without args
-  size_t qMark = line.find("?");
-  if (qMark != string::npos) {
-    subLine = line.substr(0, qMark);
+  size_t dotMark = line.find_first_of(".");
+  if (dotMark != string::npos) {
+    subLine = line.substr(dotMark); // keeping the dot
+    size_t qMark = subLine.find_first_of("?");
+    if (qMark != string::npos) {
+      subLine = subLine.substr(0, qMark);
+    }
   } else {
-    subLine = line;
+    // Exit if dot not found in URL
+    return "";
   }
   boost::algorithm::to_lower(subLine); // lower case the url before extension search
+  //cout << line << " && ext is : " << subLine << endl;
   
   /// Search extension in map
-  size_t foundExt;
   map<string, set<string> >::iterator itExtMap = mapExtensions.begin();
   set<string>::iterator itExtSet;
   for(; itExtMap!=mapExtensions.end(); itExtMap++) {
     for(itExtSet=(itExtMap->second).begin();itExtSet!=(itExtMap->second).end();itExtSet++) {
-      foundExt = subLine.find(*itExtSet);
       /// If extension is found retourn associated group name
-      if (foundExt != string::npos) {
+      if (subLine == *itExtSet) {
         return itExtMap->first;
       }
     }
@@ -84,46 +76,51 @@ bool insertLogLine(const string &strLog, const string &responseSize, const strin
   // Get DB accessor
   DBAccessBerkeley &dbA = DBAccessBerkeley::get();
   
-  int iVisit = 0;
+  unsigned int iVisit = 0;
   string val = dbA.dbw_get(strLog);
+  string newVal = "";
   if (val.length() > 0) {
     /// If Key already exist in db add +1 visit
-    //DEBUG_LOGS("Read: " << strLog << "=" << val);
-    char buffer[10];
+    DEBUG_LOGS_FUNC("Read: " << strLog << "=" << val);
+    /*char buffer[10];
     sscanf(val.c_str(), "%d", &iVisit);
     memset(buffer, 0, sizeof buffer);
     sprintf(buffer, "%d", iVisit++);
-    val = buffer;
+    val = buffer;*/
+    iVisit = stringToInt(val) + 1;
+    intToString(newVal, iVisit);
   } else { /// Else insert new key with 1 visit
     iVisit = 1;
-    val = "1";
+    newVal = "1";
   }
-  DEBUG_LOGS("Set: " << strLog << "=" << val);
+  DEBUG_LOGS_FUNC("Set: " << strLog << "=" << newVal);
   
-  if (!dbA.dbw_add(strLog, val))
+  if (!dbA.dbw_add(strLog, newVal))
     cerr << "db.error().name()" << endl;
 
   // Insert response size
-  if (responseSize != "0") {
-    val = dbA.dbw_get(strLog+"/sz");
+  if (responseSize.length() > 0) {
+    val = dbA.dbw_get(strLog+"/sz/values");
     if (val.length() > 0) {
-      val += "." + responseSize;
+      val += "," + responseSize;
     } else {
       val = responseSize;
     }
-    if (!dbA.dbw_add(strLog+"/sz", val))
+    DEBUG_LOGS_FUNC("Set: " << strLog << "/sz/values=" << val);
+    if (!dbA.dbw_add(strLog+"/sz/values", val))
       cerr << "db.error().name()" << endl;
   }
   
   // Insert response duration
-  if (responseDuration != "0") {
-    val = dbA.dbw_get(strLog+"/ti");
+  if (responseDuration.length() > 0) {
+    val = dbA.dbw_get(strLog+"/rt/values");
     if (val.length() > 0) {
-      val += "." + responseDuration;
+      val += "," + responseDuration;
     } else {
       val = responseDuration;
     }
-    if (!dbA.dbw_add(strLog+"/ti", val))
+    DEBUG_LOGS_FUNC("Set: " << strLog << "/rt/values=" << val);
+    if (!dbA.dbw_add(strLog+"/rt/values", val))
       cerr << "db.error().name()" << endl;
   }
   
@@ -153,6 +150,7 @@ bool analyseLine(const unsigned short &logFileNb, const string &line, set<string
   /// Check the filter in the line before going further
   // first extension
   logLine.group = findExtInLine(c.FILTER_EXTENSION, strs[6]);
+  DEBUG_LOGS_FUNC("group is " << logLine.group);
   if ((logLine.group).empty()) {
     return false;
   }
@@ -175,7 +173,7 @@ bool analyseLine(const unsigned short &logFileNb, const string &line, set<string
     }
   }
   
-  DEBUG_LOGS("#" << logFileNb << ". Url: " << strs[6]);
+  DEBUG_LOGS_FUNC("#" << logFileNb << ". Url: " << strs[6]);
   
   //cout << "line: " << line << endl;
   /*unsigned int iHour = 0, iMin = 0;
@@ -230,17 +228,18 @@ bool analyseLine(const unsigned short &logFileNb, const string &line, set<string
   // Set Key
   logLine.logKey = logLine.app+'/'+logLine.group+'/'+logLine.type+'/'+logLine.date_d+'/';
   
-  DEBUG_LOGS(logLine.app << " at " << logLine.date_d << " " << logLine.date_t << " as " << logLine.group << " " << logLine.type << " size:" << logLine.responseSize);
+  DEBUG_LOGS_FUNC(logLine.app << " at " << logLine.date_d << " " << logLine.date_t << " as " << logLine.group << " " << logLine.type << " size:" << logLine.responseSize << " in:" << logLine.responseDuration);
   
   string str = logLine.logKey+logLine.date_t_hours;
-  insertLogLine(str);
+  const string strEmpty = "";
+  insertLogLine(str, strEmpty, strEmpty);
   str = logLine.logKey+logLine.date_t;
-  insertLogLine(str);
+  insertLogLine(str, strEmpty, strEmpty);
   str = logLine.logKey+logLine.date_t_minutes;
   if (insertLogLine(str, logLine.responseSize, logLine.responseDuration)) {
     /// Add module in list if not exist
     setModules.insert(logLine.app);
-    DEBUG_LOGS("+1 module for " << logLine.app);
+    DEBUG_LOGS_FUNC("+1 module for " << logLine.app);
   }
   
   return true;
@@ -255,9 +254,9 @@ bool analyseLine(const unsigned short &logFileNb, const string &line, set<string
  * \param[in, out] setModules set of modules.
  * \param[in] readPos.
  */
-unsigned long readLogFile(const unsigned short &logFileNb, const string &strFile, set<string> &setModules, unsigned long readPos) {
+uint64_t readLogFile(const unsigned short &logFileNb, const string &strFile, set<string> &setModules, uint64_t readPos) {
   char * buffer;
-  unsigned long size, lSize;
+  uint64_t size, lSize;
   FILE * pFile = fopen(strFile.c_str(), "rb");
   if (pFile == NULL) {
     cerr << "Error opening file: " << strFile << endl;
@@ -286,24 +285,25 @@ unsigned long readLogFile(const unsigned short &logFileNb, const string &strFile
   size = ftell(pFile);
   fclose (pFile);
   
-  int i = 0; // nb of lines in file
-  int myI = 0; // nb of lines matching stg
-  
-  DEBUG_LOGS("#" << logFileNb << ". Parsing logs...");
+  DEBUG_LOGS_FUNC("#" << logFileNb << ". Parsing logs...");
   
   string linedata;
-  for (unsigned long j=0; j<lSize; j++) { // loop thru the buffer
+  for (uint64_t i=0, j=0; j<lSize; j++) { // loop thru the buffer
     linedata.push_back(buffer[j]); // push character into string
     if(buffer[j] == 13 || buffer[j] == 10) { // until we hit newline
-      const string str = linedata;
-      if (analyseLine(logFileNb, str, setModules)) myI++;
-      i++;
-      linedata.clear(); // Clear "temporary string"
+      if (i%100 == 0) {
+        printProgBar((int) j/(lSize/100));
+      }
+      analyseLine(logFileNb, linedata, setModules);
+      linedata.clear();
+      ++i;
     }
   }
   free (buffer);
+  printProgBar(100);
+  cout << endl;
   
-  DEBUG_LOGS("#" << logFileNb << ". Done");
+  DEBUG_LOGS_FUNC("#" << logFileNb << ". Done");
   
   return size;
 }

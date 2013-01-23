@@ -21,23 +21,40 @@
 #include <boost/algorithm/string.hpp> // split
 #include <boost/date_time/posix_time/posix_time.hpp> // Conversion date
 #include <boost/date_time/gregorian/parsers.hpp> // Parser date
+#include <boost/date_time/gregorian/gregorian.hpp>
 #include <boost/spirit/include/karma.hpp> // int to string
 #include <boost/interprocess/sync/scoped_lock.hpp> // Lock for mutex
 #include <boost/interprocess/sync/named_mutex.hpp> // Mutex
+#include <boost/asio.hpp> // Service system
 
 // mooWApp
 #include "global.h"
 #include "configuration.h"
 #include "db_access_berkeleydb.h"
 #include "log_reader.h"
+#include "thread_pool.h"
 
 // mongoose web server
 #include "mongoose.h"
 
 using namespace std;
-boost::mutex mutex;     //!< Mutex for thread blocking
+boost::mutex appMutex;     //!< Mutex for thread blocking
 struct mg_context *ctx; //!< Pointer of request's context 
 bool quit;              //!< Boolean used to quit server properly
+
+// add new work item to the pool
+template<class F>
+void ThreadPool::enqueue(F f) {
+  { // acquire lock
+    std::unique_lock<mutex> lock(queue_mutex);
+ 
+    // add the task
+    tasks.push_back(function<void()>(f));
+  } // release lock
+ 
+  // wake up one thread
+  condition.notify_one();
+}
 
 /*!
  * \fn int getDBModules(set<string> &setModules, const string &modulesLine)
@@ -487,9 +504,9 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
   nbApps = 0;
   sscanf(strModules.c_str(), "%d", &nbApps);
   if (strMode == "all") {
-    DEBUG_REQ("stats_app_intra - with " << nbApps << " apps.");
+    DEBUG_REQ_FUNC("stats_app_intra - with " << nbApps << " apps.");
   } else {
-    DEBUG_REQ("stats_app_intra - with " << nbApps << " module(s) in app.");
+    DEBUG_REQ_FUNC("stats_app_intra - with " << nbApps << " module(s) in app.");
   }
   
   for(i = 0; i < nbApps; i++) {
@@ -512,7 +529,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
         continue;
       }
       oss.str("");
-      DEBUG_REQ(strApplication << " with " << strModules << " modules [");
+      DEBUG_REQ_FUNC(strApplication << " with " << strModules << " modules [");
 
       // Loop to put modules from request in a set
       setModules.clear();
@@ -524,19 +541,19 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
           continue;
         }
         oss.str("");
-        DEBUG_REQ(strModule << ", ");
+        DEBUG_REQ_FUNC(strModule << ", ");
         setModules.insert(strModule);
 
         // Remove this module from the whole app list
         setOtherModules.erase(strModule);
       }
-      DEBUG_REQ("]");
+      DEBUG_REQ_FUNC("]");
       
       //-- and each module in an app
       for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
         //-- Get nb visit from DB
         for(its=setModules.begin(), minVisit=0; its!=setModules.end(); its++) {
-          // Build Key ex: "application/w/1/2011-04-24/150";
+          // Build Key ex: "application/w/1/2011-04-24/1503";
           oss << *its << '/' << strGroup << '/' << strType << "/" << (*itm).second << '/' << setfill('0');
 		      if (detailed) {
             oss << setw(4) << (*itm).first;
@@ -552,7 +569,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
             minVisit += iVisit;
           }
           // Return last nb visit
-          //if (strcmp("xxx", strApplication)==0) DEBUG_REQ("visits for " << oss.str() << " (" << (*itm).first << ")= " << minVisit);
+          //if (strcmp("xxx", strApplication)==0) DEBUG_REQ_FUNC("visits for " << oss.str() << " (" << (*itm).first << ")= " << minVisit);
           oss.str("");
         }  
         mapResMod.insert(pair<int, int>((*itm).first, minVisit));
@@ -568,7 +585,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
         continue;
       }
       oss.str("");
-      DEBUG_REQ("- module=" << strModule);
+      DEBUG_REQ_FUNC("- module=" << strModule);
       
       //-- and each dates.
       for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
@@ -588,7 +605,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
           sscanf(visit.c_str(), "%d", &iVisit);
         }
         // Return nb visit
-        DEBUG_REQ(" visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit);
+        DEBUG_REQ_FUNC(" visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit);
         oss.str("");
         mapResMod.insert(pair<int, int>((*itm).first, iVisit));
       }
@@ -599,13 +616,13 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
   /// In all mode, add an "Others" application
   if (strMode == "all" && setOtherModules.size() > 0) {
     map<int, int> mapResMod;
-    DEBUG_REQ("Others modules: ");
+    DEBUG_REQ_FUNC("Others modules: ");
     
     //-- Get nb visit from DB
     for(itm=mapDate.begin(); itm!=mapDate.end(); itm++) {
       //-- Get nb visit from DB
       for(its=setOtherModules.begin(), minVisit=0; its!=setOtherModules.end(); its++) {
-        if (itm == mapDate.begin()) DEBUG_REQ(*its << ", ");
+        if (itm == mapDate.begin()) DEBUG_REQ_FUNC(*its << ", ");
         // Build Key ex: "application/2011-04-24/150";
 				oss << *its << '/' << strGroup << '/' << strType << "/" << (*itm).second << '/' << setfill('0');
 				if (detailed) {
@@ -626,7 +643,7 @@ void stats_app_intra(struct mg_connection *conn, const struct mg_request_info *r
         //if (c.DEBUG_REQUESTS && iVisit!=0) cout << " visits for " << oss.str() << " (" << (*itm).first << ")= " << iVisit << endl; 
 				oss.str("");
       }
-      if (itm == mapDate.begin()) DEBUG_REQ(" ");
+      if (itm == mapDate.begin()) DEBUG_REQ_FUNC(" ");
       mapResMod.insert(pair<int, int>((*itm).first, minVisit));
     }
     vRes.push_back(make_pair("Others", mapResMod));
@@ -764,9 +781,9 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
   nbApps = 0;
   sscanf(strModules.c_str(), "%d", &nbApps);
   if (strMode == "all") {
-    DEBUG_REQ("stats_app_day - with " << nbApps << " apps.");
+    DEBUG_REQ_FUNC("stats_app_day - with " << nbApps << " apps.");
   } else {
-    DEBUG_REQ("stats_app_day - with " << nbApps << " module(s) in app.");
+    DEBUG_REQ_FUNC("stats_app_day - with " << nbApps << " module(s) in app.");
   }
   for(i = 0; i < nbApps; i++) {
     map<int, int> mapResMod;
@@ -788,7 +805,7 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
         continue;
       }
       oss.str("");
-      DEBUG_REQ(strApplication << " with " << nbModules << " modules [");
+      DEBUG_REQ_FUNC(strApplication << " with " << nbModules << " modules [");
 
       /// Loop to put modules from request in a set
       setModules.clear();
@@ -800,13 +817,13 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
           continue;
         }
         oss.str("");
-        DEBUG_REQ(strModule << ", ");
+        DEBUG_REQ_FUNC(strModule << ", ");
         setModules.insert(strModule);
 
         /// Remove this module from the whole app list
         setOtherModules.erase(strModule);
       }
-      DEBUG_REQ("]");
+      DEBUG_REQ_FUNC("]");
 
       /// and each module in an app
       for(int l=0, max=DB_TIMES_HOURS_SIZE;l<max;l++) {
@@ -821,7 +838,7 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
             sscanf(visit.c_str(), "%d", &iVisit);
             //if (*it == "bureau") cout << oss.str() << " = " << iVisit << endl;
           }
-          if (iVisit != 0) DEBUG_REQ(" visits for " << oss.str() << " => " << iVisit << " dbTimesHours[l]=" << dbTimesHours[l]);
+          if (iVisit != 0) DEBUG_REQ_FUNC(" visits for " << oss.str() << " => " << iVisit << " dbTimesHours[l]=" << dbTimesHours[l]);
           // Return nb visit
           mapResMod.insert(pair<int, int>(l, iVisit));
           oss.str("");
@@ -838,7 +855,7 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
         continue;
       }
       oss.str("");
-      DEBUG_REQ(" - module=" << strModule);
+      DEBUG_REQ_FUNC(" - module=" << strModule);
     
       /// Get nb visit from DB
       for(int l=0, max=DB_TIMES_HOURS_SIZE;l<max;l++) {
@@ -852,7 +869,7 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
           sscanf(visit.c_str(), "%d", &iVisit);
           //if (c.DEBUG_REQUESTS) cout << oss.str() << " = " << iVisit << endl;
         }
-        DEBUG_REQ(oss.str() << " at " << l << "h00 => " << iVisit);
+        DEBUG_REQ_FUNC(oss.str() << " at " << l << "h00 => " << iVisit);
         /// Return nb visit
         mapResMod.insert(pair<int, int>(l, iVisit));
         oss.str("");
@@ -865,12 +882,12 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
   /// In all mode, add an "Others" application
   if (strMode == "all" && setOtherModules.size() > 0) {
     map<int, int> mapResMod;
-    DEBUG_REQ("Others modules (" << setOtherModules.size() << "): ");
+    DEBUG_REQ_FUNC("Others modules (" << setOtherModules.size() << "): ");
     
     /// Get nb visit from DB
     for(int l = 0, max=DB_TIMES_HOURS_SIZE;l<max;l++) {
       for(it=setOtherModules.begin(), nbVisitForApp = 0; it!=setOtherModules.end(); it++) {
-        if (l == 0) DEBUG_REQ(*it << ", ");
+        if (l == 0) DEBUG_REQ_FUNC(*it << ", ");
         /// Build Key ex: "application/w/1/2011-04-24/150";
         oss << *it << '/' << strGroup << '/' << strType << "/" << strDateFormated << '/' << dbTimesHours[l];
         /// Search Key (oss) in DB
@@ -883,7 +900,7 @@ void stats_app_day(struct mg_connection *conn, const struct mg_request_info *ri)
         }
         oss.str("");
       }
-      if (l == 0) DEBUG_REQ(" ");
+      if (l == 0) DEBUG_REQ_FUNC(" ");
       /// Return nb visit
       mapResMod.insert(pair<int,int>(l, nbVisitForApp));
     }
@@ -1042,7 +1059,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
         continue;
       }
       oss.str("");
-      DEBUG_REQ("stats_app_week - app=" << strApplication);
+      DEBUG_REQ_FUNC("stats_app_week - app=" << strApplication);
       
       //-- Filter for days
       set<string> setDateToKeep;
@@ -1057,7 +1074,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
         continue;
       }
       oss.str("");
-      DEBUG_REQ("with " << nbModules << " modules in app [");
+      DEBUG_REQ_FUNC("with " << nbModules << " modules in app [");
       
       // Loop to put modules from request in a set
       setModules.clear();
@@ -1069,13 +1086,13 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
           continue;
         }
         oss.str("");
-        DEBUG_REQ(strModule << ", ");
+        DEBUG_REQ_FUNC(strModule << ", ");
         setModules.insert(strModule);
         
         // Remove this module from the whole app list
         setOtherModules.erase(strModule);
       }
-      DEBUG_REQ("]");
+      DEBUG_REQ_FUNC("]");
         
       //-- and loop for each dates.
       sscanf(strOffset.c_str(), "%d", &j);
@@ -1100,7 +1117,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
             }
           }
         }
-        DEBUG_REQ(*it << " => " << nbVisitForApp << " visits.");
+        DEBUG_REQ_FUNC(*it << " => " << nbVisitForApp << " visits.");
         it++;
         
         // Return nb visit
@@ -1117,7 +1134,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
         continue;
       }
       oss.str("");
-      DEBUG_REQ("stats_app_week: " << strModule);
+      DEBUG_REQ_FUNC("stats_app_week: " << strModule);
     
       //-- and each dates.
       sscanf(strOffset.c_str(), "%d", &j);
@@ -1146,7 +1163,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
   /// In all mode, add an "Others" application
   if (strMode == "all" && setOtherModules.size() > 0) {
     map<int, int> mapResMod;
-    DEBUG_REQ("Others modules: ");
+    DEBUG_REQ_FUNC("Others modules: ");
     
     sscanf(strOffset.c_str(), "%d", &j);
     for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
@@ -1164,7 +1181,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
           nbVisitForApp += iVisit;
         }
         
-        if (it==setDate.begin()) DEBUG_REQ(*itt << ", ");
+        if (it==setDate.begin()) DEBUG_REQ_FUNC(*itt << ", ");
       }
       
       // Return nb visit if != 0
@@ -1175,7 +1192,7 @@ void stats_app_week(struct mg_connection *conn, const struct mg_request_info *ri
     
     vRes.push_back(make_pair("Others", mapResMod));
     
-    DEBUG_REQ(" ");
+    DEBUG_REQ_FUNC(" ");
   }
   
   /// Add a SUM row serie
@@ -1289,7 +1306,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
   is_jsonp = handle_jsonp(conn, ri);
   mg_printf(conn, "%s", "[{");
   
-  DEBUG_REQ("nb=" << strModules);
+  DEBUG_REQ_FUNC("nb=" << strModules);
   
   /// Create a set for the Dates to loop easily
   max += offset;
@@ -1332,7 +1349,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
         continue;
       }
       oss.str("");
-      DEBUG_REQ("stats_app_month - app=" << strApplication);
+      DEBUG_REQ_FUNC("stats_app_month - app=" << strApplication);
       
       //-- Filter for days
       set<string> setDateToKeep;
@@ -1347,7 +1364,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
         continue;
       }
       oss.str("");
-      DEBUG_REQ("with " << nbModules << " modules in app [");
+      DEBUG_REQ_FUNC("with " << nbModules << " modules in app [");
       
       // Loop to put modules from request in a set
       setModules.clear();
@@ -1359,13 +1376,13 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
           continue;
         }
         oss.str("");
-        DEBUG_REQ(strModule << ", ");
+        DEBUG_REQ_FUNC(strModule << ", ");
         setModules.insert(strModule);
         
         // Remove this module from the whole app list
         setOtherModules.erase(strModule);
       }
-      DEBUG_REQ("]");
+      DEBUG_REQ_FUNC("]");
         
       //-- and loop for each dates.
       sscanf(strOffset.c_str(), "%d", &j);
@@ -1390,7 +1407,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
             }
           }
         }
-        DEBUG_REQ(*it << " => " << nbVisitForApp << " visits.");
+        DEBUG_REQ_FUNC(*it << " => " << nbVisitForApp << " visits.");
         it++;
         
         // Return nb visit
@@ -1407,7 +1424,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
         continue;
       }
       oss.str("");
-      DEBUG_REQ("stats_app_month - module=" << strModule);
+      DEBUG_REQ_FUNC("stats_app_month - module=" << strModule);
       
       //-- and each dates.
       sscanf(strOffset.c_str(), "%d", &j);
@@ -1417,7 +1434,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
         oss << strModule << '/' << strGroup << '/' << strType << '/' << *it;
         // Search Key (oss) in DB
         visit = dbA.dbw_get(oss.str());
-        DEBUG_REQ(oss.str() << " => j=" << j << " - "<< visit << " visits.");
+        DEBUG_REQ_FUNC(oss.str() << " => j=" << j << " - "<< visit << " visits.");
         oss.str("");
         // Return nb visit if != 0
         if (visit.length() != 0){
@@ -1435,7 +1452,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
   /// In all mode, add an "Others" application
   if (strMode == "all" && setOtherModules.size() > 0) {
     map<int, int> mapResMod;
-    DEBUG_REQ("Others modules: ");
+    DEBUG_REQ_FUNC("Others modules: ");
     
     sscanf(strOffset.c_str(), "%d", &j);
     for(it=setDate.begin(); it!=setDate.end(); j++, it++) {
@@ -1452,7 +1469,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
           nbVisitForApp += iVisit;
         }
         
-        if (it==setDate.begin()) DEBUG_REQ(*itt << ", ");
+        if (it==setDate.begin()) DEBUG_REQ_FUNC(*itt << ", ");
       }
       
       // Return nb visit
@@ -1461,7 +1478,7 @@ void stats_app_month(struct mg_connection *conn, const struct mg_request_info *r
     
     vRes.push_back(make_pair("Others", mapResMod));
     
-    DEBUG_REQ(" ");
+    DEBUG_REQ_FUNC(" ");
   }
   
   /// Add a SUM row serie
@@ -1511,7 +1528,7 @@ void stats_modules_list(struct mg_connection *conn, const struct mg_request_info
   }
   if (strMode == "all") {
     getDBModules(setModules, KEY_MODULES);
-    DEBUG_REQ("stats_modules_list - all");
+    DEBUG_REQ_FUNC("stats_modules_list - all");
   } else if (strMode == "grouped") {
     if ((itParam = mapParams.find("modules")) != mapParams.end()) {
       sscanf((itParam->second).c_str(), "%d", &nbModules);
@@ -1541,7 +1558,7 @@ void stats_modules_list(struct mg_connection *conn, const struct mg_request_info
   mg_write(conn, "[{", 2);
   
   /// Construct response
-  DEBUG_REQ( "Others modules (" << setModules.size() << ").");
+  DEBUG_REQ_FUNC( "Others modules (" << setModules.size() << ").");
   for(it=setModules.begin(), i = 0; it!=setModules.end(); it++, i++) {
     oss << "\"" << i << "\": \"" << *it << "\", ";
   }
@@ -1624,7 +1641,7 @@ void stats_admin_do_mergemodules(struct mg_connection *conn, const struct mg_req
   set<string>::iterator it;
   set<string> setToBeDeleted;
   setToBeDeleted.insert(strModule);
-  DEBUG_REQ("Delete: " << strModule);
+  DEBUG_REQ_FUNC("Delete: " << strModule);
   removeDBModules(setToBeDeleted);
   
   /// Construct response
@@ -1723,7 +1740,206 @@ void *callback(enum mg_event event, struct mg_connection *conn) {
 }
 
 /*!
- * \fn void compressionThread(const Config c)
+ * /fn string constructMoyMed(const string strDurations)
+ * \brief Return a string with durations separated by "." and moy and median separated by "/"
+ *
+ */
+string constructMoyMed(const string strDurations) {
+  vector<string> strsTps;
+  vector<unsigned int> intsTps;
+  boost::split(strsTps, strDurations, boost::is_any_of(","));
+  unsigned int tps = 0, moy = 0, med = 0, nin = 0;
+  vector<int>::size_type sz = strsTps.size();
+  for (unsigned int i=0; i<sz; i++) {
+    sscanf(strsTps[i].c_str(), "%d", &tps);
+    intsTps.push_back(tps);
+    moy += tps;
+  }
+  moy = moy / sz;
+  
+  /// Median calcul
+  vector<unsigned int>::iterator first = intsTps.begin();
+  vector<unsigned int>::iterator last = intsTps.end();
+  vector<unsigned int>::iterator middle = first + sz / 2;
+  nth_element(first, middle, last); // can specify comparator as optional 4th arg
+  med = *middle;
+  if (sz%2==0) {
+    middle = first + sz / 2 - 1;
+    nth_element(first, middle, last);
+    med = (med + *middle) / 2;
+  }
+  
+  /// 90th percentile calcul
+  vector<unsigned int>::iterator ninetyth = first + sz * 90 / 100;
+  nth_element(first, ninetyth, last); // can specify comparator as optional 4th arg
+  nin = *ninetyth;
+  double ik = 100/sz * (sz * 90 / 100 + 1);
+  //cout << "ninetyth=" << ik << endl;
+  //cout << "*ninetyth=" << nin << endl;
+  // If does not fall right on the good one :
+  if (((sz * 10 * 90 / 100) % 10) != 0) {
+    ninetyth = first + sz * 90 / 100 - 1;
+    nth_element(first, ninetyth, last);
+    double ij = 100/sz * (sz * 90 / 100);
+    //cout << "-ninetyth=" << ij << endl;
+    //cout << "-*ninetyth=" << *ninetyth << endl;
+    nin = floor( (double) (((nin - *ninetyth) / (ik-ij)) * (90-ij)) + *ninetyth );
+  }
+  
+  return boost::lexical_cast<std::string>(moy)+"/"+boost::lexical_cast<std::string>(med)+"/"+boost::lexical_cast<std::string>(nin);
+}
+
+
+void loopModuleThread(const string module, map<string, set<string> > mapExt, const string strDay, const unsigned short maxTime) {
+  ostringstream oss;
+  string val;
+  string strOss;
+  map<string, set<string> >::iterator itExtMap;
+  
+  /// Get DB accessor
+  DBAccessBerkeley &dbA = DBAccessBerkeley::get();
+
+  cout << "Start thread #" << strDay << "-" << dbTimesMinutes[maxTime] << " for module: " << module << "..." << endl;
+  
+  for(itExtMap=mapExt.begin(); itExtMap!=mapExt.end(); itExtMap++) {
+    for(int lineType = 1; lineType <= 2; lineType++) {
+      oss << module << '/' << itExtMap->first << '/' << lineType << '/' << strDay << '/';
+      strOss = oss.str();
+      if (lineType == 1) cout << module << "## " << strOss << endl;
+      oss.str("");
+      
+      for(unsigned short i=0;i<maxTime;i++) {
+        if (lineType != 2) {
+          // Search Sizes in DB
+          val = dbA.dbw_get(strOss+dbTimesMinutes[i]+"/sz/values");
+          if (val.length() > 0) {
+            if(lineType == 1) DEBUG_LOGS_FUNC("C-sz-rt Found SZ values: " << strOss << '/' << dbTimesMinutes[i] << " =" << val << "#");
+            /// Delete the current Key in DB
+            dbA.dbw_remove(strOss+dbTimesMinutes[i]+"/sz/values");
+            dbA.dbw_add(strOss+dbTimesMinutes[i]+"/sz", constructMoyMed(val));
+          }
+        }
+                    
+        // Search Times in DB
+        val = dbA.dbw_get(strOss+'/'+dbTimesMinutes[i]+"/rt/values");
+        if (val.length() > 0) {
+          if(lineType == 1) DEBUG_LOGS_FUNC("C-sz-rt Found RT values: " << strOss << '/' << dbTimesMinutes[i] << " =" << val << "#");
+          /// Delete the current Key in DB
+          dbA.dbw_remove(strOss+'/'+dbTimesMinutes[i]+"/rt/values");
+          dbA.dbw_add(strOss+'/'+dbTimesMinutes[i]+"/rt", constructMoyMed(val));
+        }
+      }
+    }
+  }
+  cout << module << "## done." << endl;
+}
+
+/*!
+ * \fn void averegeRtSzCalculThread()
+ * \brief Calcul the average/median and 90th percentile of times and sizes responses stored in DB.
+ *
+ */
+void averageRtSzCalculThread() {
+  ostringstream oss;
+  string val, strDay, strEndTime;
+  string strOss;
+  set<string> setModules;
+  set<string>::iterator it;
+  map<string, set<string> >::iterator itExtMap;
+  unsigned short maxTime;
+  
+  /// Get config object
+  Config &c = Config::get();
+  map<string, set<string> > mapExt = c.FILTER_EXTENSION;
+  
+  /// At the first start do a compression from the first day of the year
+  boost::gregorian::date dateNow(boost::gregorian::day_clock::universal_day());
+  boost::gregorian::date dateLast(dateNow.year(), boost::gregorian::Jan, 1);
+  boost::gregorian::date dateStart(dateNow.year(), dateNow.month(), 1);
+  boost::posix_time::ptime start(dateStart);
+  boost::posix_time::time_iterator titr(start, boost::posix_time::minutes(1)); //increment by 1 minutes
+  boost::posix_time::ptime t = boost::posix_time::second_clock::universal_time() - boost::posix_time::seconds(10);
+  
+  try {
+    while(true) {
+      boost::gregorian::date today(boost::gregorian::day_clock::universal_day());
+      boost::posix_time::ptime timeNow(boost::posix_time::second_clock::universal_time());
+      cout << "CALCUL RtSz Objective:" << boost::posix_time::to_simple_string(t) << " & now:" << boost::posix_time::to_simple_string(timeNow) << endl;
+	  	
+    	/// New iteration check if current time > parsing date fixed
+      /// Compression to file atomically
+      if (timeNow >= t && appMutex.try_lock()) {
+        cout << "----- CALCUL RtSz RUNNING now (" << boost::posix_time::to_simple_string(timeNow) << ")-----" << endl;
+        
+        /// Prepare for the next parsing : add +10minutes to date fixed
+        t += boost::posix_time::minutes(10);
+        
+        /// Reconstruct list of modules
+        getDBModules(setModules, KEY_MODULES);
+        
+        boost::posix_time::ptime endLast, end = timeNow - boost::posix_time::minutes(2);
+        oss << setfill('0') << setw(2) << end.time_of_day().hours() << setw(2) << end.time_of_day().minutes();
+        strEndTime = oss.str();
+        oss.str("");
+        for(unsigned short i=0;i<DB_TIMES_MINUTES_SIZE;i++) {
+          if (dbTimesMinutes[i] == strEndTime) {
+            maxTime = i;
+            break;
+          }
+        }
+        cout << "CALCUL RtSz end:" << boost::posix_time::to_simple_string(end) << " is " << strEndTime << " (" << maxTime << ")" << endl;
+        
+        /// Reloop thru all minute slots since last parsing to j-x
+        boost::gregorian::day_iterator ditr(dateLast);
+        for (;ditr <= today; ++ditr) {
+          /// produces "C: 2013-11-04", "C: 2013-11-05", ...
+          strDay = to_iso_extended_string(*ditr);
+          cout << "C-sz-rt: " << strDay << endl;
+          
+          /// Set last time for day to use as max if the current parsing day is not the current day (aka today)
+          if (ditr < today) {
+            maxTime = DB_TIMES_MINUTES_SIZE;
+          }
+          
+          /// Check to see if this thread has been interrupted before going into each minutes of the current day
+          boost::this_thread::interruption_point();
+          
+          // create a thread pool of as many worker threads as there is logical cpus
+          //ThreadPool pool(boost::thread::hardware_concurrency());
+          ThreadPool pool(1);
+ 
+          // queue a bunch of "work items"
+          /*for(int i = 0;i<16;++i) {
+            pool.enqueue([i]
+            {
+              cout << "hello " << i << endl;
+              boost::this_thread::sleep(boost::posix_time::milliseconds(20));
+              cout << "world " << i << endl;
+            });
+          }*/
+          for(it=setModules.begin(); it!=setModules.end(); it++) {
+            pool.enqueue([it, mapExt, strDay, maxTime]
+            {
+              loopModuleThread(*it, mapExt, strDay, maxTime);
+            });
+          }
+        }
+        
+        cout << "----- CALCUL RtSz END now -----" << endl;
+        dateLast = today;
+        endLast = end;
+      }
+      
+      /// Sleep for 1 minute
+      boost::this_thread::sleep(boost::posix_time::seconds(20));
+    }
+  } catch(boost::thread_interrupted &ex) {
+    cout << "done" << endl;
+  }
+}
+
+/*!
+ * \fn void compressionThread()
  * \brief Compress the stats DB at a precise time once a day until 7 day from today.
  *
  */
@@ -1731,7 +1947,7 @@ void compressionThread() {
   uint64_t i, dayVisit;
   int iVisit;
   ostringstream oss;
-  string visit;
+  string val;
   string strOss;
   set<string> setModules;
   set<string> setDeletedModules;
@@ -1750,7 +1966,7 @@ void compressionThread() {
   
   /// At the first start do a compression from the first day of the year
   boost::gregorian::date dateNow(boost::gregorian::day_clock::universal_day());
-  boost::gregorian::date dateLast(dateNow.year(), boost::gregorian::Oct, 7);
+  boost::gregorian::date dateLast(dateNow.year(), boost::gregorian::Jan, 1);
   
   /// Hold the delay for non compressed stats
   boost::gregorian::date_duration dd_minutes(c.DAYS_FOR_MINUTES_DETAILS);
@@ -1770,11 +1986,11 @@ void compressionThread() {
       boost::gregorian::date dateToHold(today - dd_details);
       boost::gregorian::date dateToHoldHours(today - dd_hours);
       boost::posix_time::ptime timeNow(boost::posix_time::second_clock::universal_time());
-      cout << "COMPRESSION Obj:" << boost::posix_time::to_simple_string(t) << " & now:" << boost::posix_time::to_simple_string(timeNow) << endl;
+      cout << "COMPRESSION Objective:" << boost::posix_time::to_simple_string(t) << " & now:" << boost::posix_time::to_simple_string(timeNow) << endl;
 	  	
     	/// New iteration check if current time > parsing date fixed (= 03h00)
       /// Compression to file atomically
-      if (timeNow >= t && mutex.try_lock()) {
+      if (timeNow >= t && appMutex.try_lock()) {
         cout << "----- COMPRESSION RUNNING now (" << boost::posix_time::to_simple_string(timeNow) << ")-----" << endl;
 		    
         /// Prepare for the next parsing : add +1 day to date fixed
@@ -1801,7 +2017,7 @@ void compressionThread() {
             cout << " R.";
           }
           
-          /// Check to see if this thread has been interrupted before going into each days of the curent month
+          /// Check to see if this thread has been interrupted before going into each modules of the current day
           boost::this_thread::interruption_point();
         
           /// Loop thru modules to compress stored stats
@@ -1818,42 +2034,34 @@ void compressionThread() {
 								// Remove old minutes time stats
                 if (ditr <= dateToHoldMinutes) {
                   for(i=0;i<DB_TIMES_MINUTES_SIZE;i++) {
-										//if(c.DEBUG_LOGS && lineType == 1 && i == 0 && itExtMap->first == "w" && *it == "bureau")
-										//  cout << "C Search -Minutes-: " << strOss << '/' << dbTimesMinutes[i] << endl;
-                    // Search Key in DB
-                    visit = dbA.dbw_get(strOss+'/'+dbTimesMinutes[i]);
-                    if (visit.length() > 0) {
-                      if(lineType == 1) DEBUG_LOGS("C Found -Minutes-: " << strOss << '/' << dbTimesMinutes[i] << " =" << visit << "#");
-                      /// Delete the current Key in DB
-                      dbA.dbw_remove(strOss+'/'+dbTimesMinutes[i]);
-                    }
+                    dbA.dbw_remove(strOss+'/'+dbTimesMinutes[i]);
+                    dbA.dbw_remove(strOss+'/'+dbTimesMinutes[i]+"/sz");
+                    dbA.dbw_remove(strOss+'/'+dbTimesMinutes[i]+"/rt");
                   }
                 }
 								/// Remove old 10 minutes stats
                 if (ditr <= dateToHold) {
                   for(i=0;i<DB_TIMES_SIZE;i++) {
-                    // Search Key in DB
-                    visit = dbA.dbw_get(strOss+'/'+dbTimes[i]);
-                    if (visit.length() > 0) {
-                      if(lineType == 1) DEBUG_LOGS("C Found -Dec-: " << strOss << '/' << dbTimes[i] << " =" << visit << "#");
-                      /// Delete the current Key in DB
-                      dbA.dbw_remove(strOss+'/'+dbTimes[i]);
-                    }
+                    dbA.dbw_remove(strOss+'/'+dbTimes[i]);
+                    dbA.dbw_remove(strOss+'/'+dbTimes[i]+"/sz");
+                    dbA.dbw_remove(strOss+'/'+dbTimes[i]+"/rt");
                   }
                 }
                 /// Compress hours stats
                 for(i=0;i<DB_TIMES_HOURS_SIZE;i++) {
                   // Search Key in DB
-                  visit = dbA.dbw_get(strOss+'/'+dbTimesHours[i]);
-                  if (visit.length() > 0) {
-                    if(lineType == 1) DEBUG_LOGS("C Found -Hours-: " << strOss << '/' << dbTimesHours[i] << " =" << visit << "#");
+                  val = dbA.dbw_get(strOss+'/'+dbTimesHours[i]);
+                  if (val.length() > 0) {
+                    if(lineType == 1) DEBUG_LOGS_FUNC("C Found -Hours-: " << strOss << '/' << dbTimesHours[i] << " =" << val << "#");
                     /// Remove old hours stats
                 		if (ditr <= dateToHoldHours) {
 								      /// Delete the current Key in DB
                       dbA.dbw_remove(strOss+'/'+dbTimesHours[i]);
+                      dbA.dbw_remove(strOss+'/'+dbTimesHours[i]+"/sz");
+                      dbA.dbw_remove(strOss+'/'+dbTimesHours[i]+"/rt");
                     }
                     /// SUM nb visit from hours to days
-                    sscanf(visit.c_str(), "%d", &iVisit);
+                    sscanf(val.c_str(), "%d", &iVisit);
                     dayVisit += iVisit;
                   }
                 }
@@ -1861,7 +2069,7 @@ void compressionThread() {
                 if (dayVisit > 0) {
                   /// Add nb day visits in DB
                   if (dbA.dbw_add(strOss, boost::lexical_cast<string>(dayVisit))) {
-                    if(lineType == 1) DEBUG_LOGS("C Added: " << strOss << " = " << dayVisit);
+                    if(lineType == 1) DEBUG_LOGS_FUNC("C Added: " << strOss << " = " << dayVisit);
                   }
                 }
                 oss.str("");
@@ -1881,12 +2089,12 @@ void compressionThread() {
               strOss = oss.str();
               for(i=0;i<DB_TIMES_HOURS_SIZE;i++) {
                 // Search Key in DB
-                visit = dbA.dbw_get(strOss+'/'+dbTimesHours[i]);
-                if (visit.length() > 0) {
+                val = dbA.dbw_get(strOss+'/'+dbTimesHours[i]);
+                if (val.length() > 0) {
                   if (ditr <= dateToHoldHours) {
                     /// Delete the current Key in DB
                     dbA.dbw_remove(strOss+'/'+dbTimesHours[i]);
-                    if(lineType == 1) DEBUG_LOGS("C Full delete: " << strOss);
+                    if(lineType == 1) DEBUG_LOGS_FUNC("C Full delete: " << strOss);
                   }
                 }
               }
@@ -1909,7 +2117,7 @@ void compressionThread() {
       
         dateLast = dateToHold;
         /// Release the mutex
-        mutex.unlock();
+        appMutex.unlock();
       }
       
       /// Sleep for 20 minutes
@@ -1927,7 +2135,7 @@ void compressionThread() {
  * \param[in] logFileNb Number of log file in configuration to be read (default: 1).
  * \param[in] readPos Position in file to read (default: 0).
  */
-void readLogThread(const unsigned short logFileNb, unsigned long readPos) {
+void readLogThread(const unsigned short logFileNb, uint64_t readPos) {
   string data;
   struct tm * timeinfo;
   time_t now;
@@ -1945,7 +2153,7 @@ void readLogThread(const unsigned short logFileNb, unsigned long readPos) {
     }
     posFileIn.close();
   } else {
-    cout << "Unable to open pos file." << endl;
+    cout << "Unable to open pos file for log file #" << logFileNb << endl;
   }
   
   /// Get config object containing the path/name of file to read.
@@ -1957,7 +2165,7 @@ void readLogThread(const unsigned short logFileNb, unsigned long readPos) {
   /// Get config informations, if fail exit
   map<unsigned short, pair<string, string> >::const_iterator itLogFileConf = c.LOGS_FILES_CONFIG.find(logFileNb);
   if (itLogFileConf == c.LOGS_FILES_CONFIG.end()) {
-    cerr << "Configuration file is not properly initialized. Exit." << endl;
+    cerr << "Configuration file is not properly initialized for log file #" << logFileNb << ". Exit." << endl;
     return;
   }
   pair<string, string> lfC = itLogFileConf->second;
@@ -1972,7 +2180,7 @@ void readLogThread(const unsigned short logFileNb, unsigned long readPos) {
       boost::this_thread::sleep(boost::posix_time::seconds(wait_time)); // interruptible
       
       /// Write to file atomically
-      if (! mutex.try_lock()) {
+      if (! appMutex.try_lock()) {
         continue;
       }
       
@@ -2020,7 +2228,7 @@ void readLogThread(const unsigned short logFileNb, unsigned long readPos) {
       dbA.dbw_add(KEY_MODULES, strModules);
       
       /// Released the mutex
-      mutex.unlock();
+      appMutex.unlock();
     }
   } catch(boost::thread_interrupted &ex) {
     cout << "done" << endl;
@@ -2073,16 +2281,22 @@ int main(int argc, char* argv[]) {
   /// DB Compact task set-up
   boost::thread cThread;
   if (c.COMPRESSION) {
-    cout << "DB task start..." << endl;
+    cout << "DB compression task start..." << endl;
     cThread = boost::thread(compressionThread);
   }
-
+  
+  /// DB Compact task set-up
+  boost::thread rtSzThread;
+  cout << "DB RtSz compression task start..." << endl;
+  rtSzThread = boost::thread(averageRtSzCalculThread);
+  
   /// Start reading file for each one configured
-  unsigned long readPos = 0;
+  uint64_t readPos = 0;
   boost::thread rThread[c.LOGS_FILE_NB];
-  for(unsigned short i=1; i <= c.LOGS_FILE_NB; i++) {
-    cout << "Read file task start... (" << i << ")." << endl;
-    rThread[i] = boost::thread(readLogThread, i, readPos);
+  cout << "====== LOGS_FILE_NB = " << c.LOGS_FILE_NB << endl;
+  for(unsigned short i=0; i < c.LOGS_FILE_NB; i++) {
+    cout << "Read file task start... (" << i+1 << ")." << endl;
+    rThread[i] = boost::thread(readLogThread, i+1, readPos);
   }
   
   /// Json web server set-up
@@ -2104,8 +2318,8 @@ int main(int argc, char* argv[]) {
   cout << buffer << ". Stoping server... " << flush;
   mg_stop(ctx);
   cout << "done" << endl;
-  for(unsigned short i=1; i <= c.LOGS_FILE_NB; i++) {
-    cout << "Stoping LOG Thread... (" << i << ")." << flush;
+  for(unsigned short i=0; i < c.LOGS_FILE_NB; i++) {
+    cout << "Stoping LOG Thread... (" << i+1 << ")." << flush;
     rThread[i].interrupt();
     rThread[i].join();
   }
@@ -2115,6 +2329,11 @@ int main(int argc, char* argv[]) {
     cThread.interrupt();
     cThread.join();
   }
+
+  cout << "Stoping RtSz Compression Thread... " << flush;
+  rtSzThread.interrupt();
+  rtSzThread.join();
+  
   cout << "Closing DB... " << flush;
   /// DB Release
   dbA.dbw_close();
